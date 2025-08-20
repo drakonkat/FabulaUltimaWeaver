@@ -38,7 +38,7 @@ const Header = ({ onBack, showBack, user, onSignOut }) => {
       React.createElement('div', { className: "flex items-center justify-center gap-4 flex-shrink-0" },
         React.createElement(SwordIcon, null),
         React.createElement('h1', { className: "text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] tracking-wider text-center", style: { fontFamily: 'serif' } },
-          "Adventure Weaver"
+          "GDR Support"
         ),
         React.createElement(SwordIcon, null)
       ),
