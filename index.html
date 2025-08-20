@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adventure Weaver</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+       /* THEME DEFINITIONS */
+      html.theme-dark {
+        --bg-primary: #111827; /* gray-900 */
+        --bg-secondary: #1F2937; /* gray-800 */
+        --bg-tertiary: #374151; /* gray-700 */
+        --bg-quaternary: #4B5563; /* gray-600 */
+        --bg-contrast: #111827;
+        
+        --text-primary: #F3F4F6; /* gray-100 */
+        --text-secondary: #D1D5DB; /* gray-300 */
+        --text-muted: #9CA3AF; /* gray-400 */
+        --text-subtle: #6B7280; /* gray-500 */
+
+        --border-primary: #4B5563; /* gray-600 */
+        --border-secondary: #374151; /* gray-700 */
+        --border-accent: #6D28D9; /* purple-700 */
+        --border-accent-light: #8B5CF6; /* purple-500 */
+        
+        --accent-primary: #A78BFA; /* purple-400 */
+        --accent-secondary: #8B5CF6; /* purple-500 */
+        --accent-tertiary: #7C3AED; /* purple-600 */
+
+        --highlight-primary-from: #FBBF24; /* yellow-400 */
+        --highlight-primary-to: #F59E0B; /* amber-500 */
+        --highlight-secondary: #FBBF24; /* yellow-400 */
+        --highlight-tertiary: #EAB308; /* yellow-500 */
+        
+        --danger: #EF4444; /* red-500 */
+        --danger-bg: rgba(153, 27, 27, 0.3);
+        --danger-border: rgba(185, 28, 28, 0.8);
+        --danger-text: #FCA5A5; /* red-300 */
+
+        --success: #22C55E; /* green-500 */
+        --info: #3B82F6; /* blue-500 */
+      }
+
+      html.theme-light {
+        --bg-primary: #F9FAFB; /* gray-50 */
+        --bg-secondary: #FFFFFF; /* white */
+        --bg-tertiary: #F3F4F6; /* gray-100 */
+        --bg-quaternary: #E5E7EB; /* gray-200 */
+        --bg-contrast: #FFFFFF;
+        
+        --text-primary: #1F2937; /* gray-800 */
+        --text-secondary: #374151; /* gray-700 */
+        --text-muted: #6B7280; /* gray-500 */
+        --text-subtle: #9CA3AF; /* gray-400 */
+
+        --border-primary: #D1D5DB; /* gray-300 */
+        --border-secondary: #E5E7EB; /* gray-200 */
+        --border-accent: #7C3AED; /* purple-600 */
+        --border-accent-light: #8B5CF6; /* purple-500 */
+        
+        --accent-primary: #6D28D9; /* purple-700 */
+        --accent-secondary: #7C3AED; /* purple-600 */
+        --accent-tertiary: #8B5CF6; /* purple-500 */
+
+        --highlight-primary-from: #7C3AED; /* purple-600 */
+        --highlight-primary-to: #6D28D9; /* purple-700 */
+        --highlight-secondary: #6D28D9; /* purple-700 */
+        --highlight-tertiary: #5B21B6; /* purple-800 */
+        
+        --danger: #DC2626; /* red-600 */
+        --danger-bg: rgba(254, 226, 226, 1); /* red-100 */
+        --danger-border: rgba(252, 165, 165, 1); /* red-300 */
+        --danger-text: #991B1B; /* red-800 */
+
+        --success: #16A34A; /* green-600 */
+        --info: #2563EB; /* blue-600 */
+      }
+
+      html.theme-arcane {
+        --bg-primary: #1e1b2e;
+        --bg-secondary: #2a2744;
+        --bg-tertiary: #4a4568;
+        --bg-quaternary: #6a6394;
+        --bg-contrast: #141120;
+
+        --text-primary: #e0dff0;
+        --text-secondary: #c0bce0;
+        --text-muted: #a09ccd;
+        --text-subtle: #807aad;
+
+        --border-primary: #4a4568;
+        --border-secondary: #2a2744;
+        --border-accent: #9f7aea;
+        --border-accent-light: #bb86fc;
+        
+        --accent-primary: #bb86fc;
+        --accent-secondary: #9f7aea;
+        --accent-tertiary: #805ad5;
+
+        --highlight-primary-from: #00d4ff;
+        --highlight-primary-to: #61efff;
+        --highlight-secondary: #00d4ff;
+        --highlight-tertiary: #00a3cc;
+        
+        --danger: #cf6679;
+        --danger-bg: rgba(207, 102, 121, 0.1);
+        --danger-border: rgba(207, 102, 121, 0.5);
+        --danger-text: #f2b8c3;
+
+        --success: #03dac6;
+        --info: #37b9f1;
+      }
+      
+      html.theme-draconic {
+        --bg-primary: #121212;
+        --bg-secondary: #1E1E1E;
+        --bg-tertiary: #2e2a27;
+        --bg-quaternary: #3f3a35;
+        --bg-contrast: #000000;
+        
+        --text-primary: #E0D6CC;
+        --text-secondary: #D4C6B7;
+        --text-muted: #B4A697;
+        --text-subtle: #857C72;
+
+        --border-primary: #3f3a35;
+        --border-secondary: #2e2a27;
+        --border-accent: #B83226;
+        --border-accent-light: #D9584B;
+        
+        --accent-primary: #D4AF37; /* Gold */
+        --accent-secondary: #B83226; /* Dark Red */
+        --accent-tertiary: #9c2a20;
+
+        --highlight-primary-from: #D4AF37;
+        --highlight-primary-to: #E6C665;
+        --highlight-secondary: #D4AF37;
+        --highlight-tertiary: #C09E26;
+        
+        --danger: #B83226;
+        --danger-bg: rgba(184, 50, 38, 0.15);
+        --danger-border: rgba(184, 50, 38, 0.6);
+        --danger-text: #f5b0aa;
+
+        --success: #A69251;
+        --info: #6C8193;
+      }
+      /* Custom scrollbars to match the current theme */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-primary);
+      }
+      ::-webkit-scrollbar-thumb {
+        background-color: var(--bg-tertiary);
+        border-radius: 4px;
+        border: 2px solid var(--bg-primary);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--bg-quaternary);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.9.0",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/client": "https://esm.sh/react-dom@^19.1.0/client",
+    "jwt-decode": "https://esm.sh/jwt-decode@4.0.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/"
+  }
+}
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+  <body class="bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div id="root"></div>
+    <script type="module" src="/index.js"></script>
+  </body>
+</html>
