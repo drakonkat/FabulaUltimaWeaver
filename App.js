@@ -353,7 +353,8 @@ const AppContent = () => {
                   onAddHero: handleAddHero,
                   onUpdateHero: handleUpdateHero,
                   onRemoveHero: handleRemoveHero,
-                  onGeneratePortrait: handleGeneratePortrait
+                  onGeneratePortrait: handleGeneratePortrait,
+                  gameSystem: activeCampaign.gameSettings.system
               }),
               !activeCampaign.storyData && !isLoading && React.createElement(PromptInput, {
                   onGenerate: handleGenerate,

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
@@ -21,7 +22,7 @@ const MiniSpinner = ({ className = "h-8 w-8 text-white" }) => React.createElemen
     React.createElement('path', { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
 );
 
-const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGeneratePortrait }) => {
+const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGeneratePortrait, gameSystem }) => {
     const { t } = useTranslation();
     const [isFormVisible, setIsFormVisible] = useState(false);
     const [editingHero, setEditingHero] = useState(null);
@@ -36,6 +37,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
     const [appearance, setAppearance] = useState('');
     const [background, setBackground] = useState('');
     const [status, setStatus] = useState('Healthy');
+    const [stats, setStats] = useState({});
 
     useEffect(() => {
         if (editingHero) {
@@ -47,6 +49,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
             setAppearance(editingHero.appearance);
             setBackground(editingHero.background);
             setStatus(editingHero.status);
+            setStats(editingHero.stats || {});
             setIsFormVisible(true);
         } else {
             resetForm();
@@ -56,6 +59,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
     const resetForm = () => {
         setName(''); setGender(''); setAge(''); setRace(''); setHeroClass('');
         setAppearance(''); setBackground(''); setStatus('Healthy');
+        setStats({});
     };
 
     const handleOpenFormForAdd = () => {
@@ -75,7 +79,9 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
 
         const template = heroTemplates.find(t => t.name === templateName);
         if (template) {
-            onAddHero({ ...template, status: 'Healthy' });
+            const systemStats = gameSystem === 'D&D' ? template.stats.dd : template.stats.fu;
+            const { stats, ...restOfTemplate } = template;
+            onAddHero({ ...restOfTemplate, status: 'Healthy', stats: systemStats });
         }
         e.target.value = ''; // Reset select
     };
@@ -91,11 +97,19 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
             setGeneratingPortraitFor(null);
         }
     };
+    
+    const handleStatChange = (statName, value) => {
+        const isDd = gameSystem === 'D&D';
+        setStats(prevStats => ({
+            ...prevStats,
+            [statName]: isDd ? (value ? parseInt(value, 10) : 0) : value,
+        }));
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (name.trim() && background.trim() && status.trim()) {
-            const heroData = { name, gender, age, race, class: heroClass, appearance, background, status };
+            const heroData = { name, gender, age, race, class: heroClass, appearance, background, status, stats };
             if (editingHero) {
                 onUpdateHero({ ...editingHero, ...heroData });
             } else {
@@ -105,6 +119,33 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
             setEditingHero(null);
         }
     };
+    
+    const StatInput = ({ statKey, placeholder }) => React.createElement('div', null,
+        React.createElement('label', { htmlFor: `stat-${statKey}`, className:"block text-sm font-medium text-[var(--text-secondary)] mb-1" }, t(statKey)),
+        React.createElement('input', {
+            id: `stat-${statKey}`,
+            type: "number",
+            placeholder: placeholder,
+            value: stats[statKey] || '',
+            onChange: e => handleStatChange(statKey, e.target.value),
+            className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]"
+        })
+    );
+
+    const StatSelect = ({ statKey }) => React.createElement('div', null,
+        React.createElement('label', { htmlFor: `stat-${statKey}`, className:"block text-sm font-medium text-[var(--text-secondary)] mb-1" }, t(statKey)),
+        React.createElement('select', {
+            id: `stat-${statKey}`,
+            value: stats[statKey] || 'd6',
+            onChange: e => handleStatChange(statKey, e.target.value),
+            className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]"
+        },
+            React.createElement('option', { value: "d6" }, "d6"),
+            React.createElement('option', { value: "d8" }, "d8"),
+            React.createElement('option', { value: "d10" }, "d10"),
+            React.createElement('option', { value: "d12" }, "d12")
+        )
+    );
 
     const form = React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
         React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingHero ? t('editHeroTitle') : t('addHeroTitle')),
@@ -112,13 +153,31 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
             React.createElement('input', { type: "text", placeholder: t('heroNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true }),
             React.createElement('input', { type: "text", placeholder: t('heroGenderPlaceholder'), value: gender, onChange: e => setGender(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
             React.createElement('input', { type: "text", placeholder: t('heroAgePlaceholder'), value: age, onChange: e => setAge(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
-            React.createElement('input', { type: "text", placeholder: t('heroRacePlaceholder'), value: race, onChange: e => setRace(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" })
+            React.createElement('input', { type: "text", placeholder: t('heroRacePlaceholder'), value: race, onChange: e => setRace(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
+            React.createElement('input', { type: "text", placeholder: t('heroClassPlaceholder'), value: heroClass, onChange: e => setHeroClass(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
+            React.createElement('input', { type: "text", placeholder: t('statusPlaceholder'), value: status, onChange: e => setStatus(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true })
         ),
-        React.createElement('input', { type: "text", placeholder: t('heroClassPlaceholder'), value: heroClass, onChange: e => setHeroClass(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
         React.createElement('textarea', { placeholder: t('heroAppearancePlaceholder'), value: appearance, onChange: e => setAppearance(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-20 resize-none" }),
         React.createElement('textarea', { placeholder: t('backgroundPlaceholder'), value: background, onChange: e => setBackground(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-24 resize-none", required: true }),
-        React.createElement('input', { type: "text", placeholder: t('statusPlaceholder'), value: status, onChange: e => setStatus(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true }),
-        React.createElement('div', { className: "flex justify-end gap-4" },
+        React.createElement('div', { className: "border-t border-[var(--border-primary)] my-2" }),
+        React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('attributes')),
+        React.createElement('div', { className: `grid grid-cols-2 md:grid-cols-${gameSystem === 'D&D' ? 3 : 4} gap-4 mt-2` },
+            gameSystem === 'D&D' && React.createElement(React.Fragment, null,
+                React.createElement(StatInput, { statKey: 'str', placeholder: t('strPlaceholder') }),
+                React.createElement(StatInput, { statKey: 'dex', placeholder: t('dexPlaceholder') }),
+                React.createElement(StatInput, { statKey: 'con', placeholder: t('conPlaceholder') }),
+                React.createElement(StatInput, { statKey: 'int', placeholder: t('intPlaceholder') }),
+                React.createElement(StatInput, { statKey: 'wis', placeholder: t('wisPlaceholder') }),
+                React.createElement(StatInput, { statKey: 'cha', placeholder: t('chaPlaceholder') })
+            ),
+            gameSystem === 'Fabula Ultima' && React.createElement(React.Fragment, null,
+                React.createElement(StatSelect, { statKey: 'dex' }),
+                React.createElement(StatSelect, { statKey: 'ins' }),
+                React.createElement(StatSelect, { statKey: 'mig' }),
+                React.createElement(StatSelect, { statKey: 'wlp' })
+            )
+        ),
+        React.createElement('div', { className: "flex justify-end gap-4 mt-4" },
             React.createElement('button', { type: "button", onClick: handleCancel, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] transition-colors" }, t('cancel')),
             React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] hover:from-[var(--highlight-primary-to)] hover:to-[var(--highlight-primary-from)]" }, editingHero ? t('updateHero') : t('saveHero'))
         )
@@ -162,6 +221,14 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
                     React.createElement('div', { className: "flex-shrink-0 flex gap-2" },
                         React.createElement('button', { onClick: () => setEditingHero(hero), className: "p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/50 rounded-full transition-colors duration-200", 'aria-label': `${t('edit')} ${hero.name}` }, React.createElement(PencilIcon, null)),
                         React.createElement('button', { onClick: () => onRemoveHero(hero.id), className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200", 'aria-label': `${t('remove')} ${hero.name}` }, React.createElement(TrashIcon, null))
+                    )
+                ),
+                React.createElement('div', { className: "flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-[var(--text-secondary)]" },
+                    hero.stats && gameSystem === 'D&D' && ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat =>
+                        React.createElement('span', { key: stat }, React.createElement('b', null, `${t(stat)}:`), ` ${hero.stats[stat] || 10}`)
+                    ),
+                    hero.stats && gameSystem === 'Fabula Ultima' && ['dex', 'ins', 'mig', 'wlp'].map(stat =>
+                        React.createElement('span', { key: stat }, React.createElement('b', null, `${t(stat)}:`), ` ${hero.stats[stat] || 'd6'}`)
                     )
                 ),
                 React.createElement('div', { className: "mt-3 border-t border-[var(--border-secondary)] pt-3" },

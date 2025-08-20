@@ -26,7 +26,8 @@ export const exampleCampaignData = {
       appearance: "Clad in polished steel plate armor that bears the crest of a forgotten kingdom. He has a square jaw, a determined gaze, and a large shield strapped to his back.",
       background: "A knight sworn to protect the innocent. He heard of Oakhaven's plight and traveled to lend his sword to their cause, seeing it as his sacred duty.",
       status: "Vigilant",
-      imageUrl: null
+      imageUrl: null,
+      stats: { str: 16, dex: 12, con: 15, int: 10, wis: 13, cha: 11 }
     },
     {
       name: "Ria the Knowledge-Seeker",
@@ -37,7 +38,8 @@ export const exampleCampaignData = {
       appearance: "Wears spectacles on the end of her nose and has pockets overflowing with scrolls, lenses, and strange tools. Her silver hair is tied in a messy but practical bun.",
       background: "An insatiable scholar of lost civilizations. The legend of Eldoria is the stuff of dreams for her, and she couldn't resist the opportunity to study it firsthand, danger be damned.",
       status: "Excited",
-      imageUrl: null
+      imageUrl: null,
+      stats: { str: 8, dex: 14, con: 12, int: 17, wis: 15, cha: 10 }
     }
   ],
   gameSettings: {
