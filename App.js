@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { generateStory, rewriteText, generateCharacterBackground } from './services/geminiService.js';
@@ -254,22 +255,20 @@ const NpcManager = ({ npcs, onAdd, onUpdate, onRemove }) => {
         setEditingNpc(null);
     };
     
-    const NpcForm = () => React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
-        React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingNpc ? t('editNpcTitle') : t('addNpcTitle')),
-        React.createElement('input', { type: "text", placeholder: t('npcNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]", required: true }),
-        React.createElement('textarea', { placeholder: t('npcDescriptionPlaceholder'), value: description, onChange: e => setDescription(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-24 resize-none" }),
-        React.createElement('div', { className: "flex justify-end gap-4 mt-2" },
-            React.createElement('button', { type: "button", onClick: () => { setIsFormVisible(false); setEditingNpc(null); }, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
-            React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)]" }, editingNpc ? t('updateHero') : t('saveHero'))
-        )
-    );
-
     return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
         React.createElement('div', { className: "flex justify-between items-center mb-4" },
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, t('npcNotes')),
             !isFormVisible && React.createElement('button', { onClick: () => setIsFormVisible(true), className: "flex items-center px-4 py-2 rounded-lg bg-[var(--accent-tertiary)] hover:bg-[var(--accent-secondary)] text-white" }, t('addNpc'))
         ),
-        isFormVisible && React.createElement(NpcForm),
+        isFormVisible && React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
+            React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingNpc ? t('editNpcTitle') : t('addNpcTitle')),
+            React.createElement('input', { type: "text", placeholder: t('npcNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]", required: true }),
+            React.createElement('textarea', { placeholder: t('npcDescriptionPlaceholder'), value: description, onChange: e => setDescription(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-24 resize-none" }),
+            React.createElement('div', { className: "flex justify-end gap-4 mt-2" },
+                React.createElement('button', { type: "button", onClick: () => { setIsFormVisible(false); setEditingNpc(null); }, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
+                React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)]" }, editingNpc ? t('updateNpc') : t('saveNpc'))
+            )
+        ),
         npcs.length === 0 ? React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t('noNpcs')) :
         React.createElement('div', { className: "space-y-4" }, npcs.map(npc => React.createElement('div', { key: npc.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
             React.createElement('div', { className: "flex justify-between items-start" },
@@ -326,27 +325,25 @@ const NotesManager = ({ notes, onAdd, onUpdate, onRemove, onRewrite }) => {
     
     const SparklesIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 mr-1.5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 0a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V6h-1a1 1 0 010-2h1V3a1 1 0 011-1zM9 10a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1v-1a1 1 0 011-1zm7-5a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V8h-1a1 1 0 010-2h1V5a1 1 0 011-1z", clipRule: "evenodd" }));
 
-    const NoteForm = () => React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
-        React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingNote ? t('editNoteTitle') : t('addNoteTitle')),
-        React.createElement('input', { type: "text", placeholder: t('noteKeyPlaceholder'), value: key, onChange: e => setKey(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]", required: true }),
-        React.createElement('div', { className: "relative" },
-            React.createElement('textarea', { placeholder: t('noteValuePlaceholder'), value: value, onChange: e => setValue(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-32 resize-none" }),
-            React.createElement('button', { type: "button", onClick: handleRewriteClick, disabled: isRewriting, className: "absolute bottom-3 right-3 flex items-center px-2.5 py-1.5 text-xs rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
-              isRewriting ? t('rewriting') : React.createElement(React.Fragment, null, React.createElement(SparklesIcon), t('rewriteWithAI'))
-            )
-        ),
-        React.createElement('div', { className: "flex justify-end gap-4 mt-2" },
-            React.createElement('button', { type: "button", onClick: () => { setIsFormVisible(false); setEditingNote(null); }, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
-            React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)]" }, editingNote ? t('updateHero') : t('saveHero'))
-        )
-    );
-
     return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
         React.createElement('div', { className: "flex justify-between items-center mb-4" },
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, t('campaignNotes')),
             !isFormVisible && React.createElement('button', { onClick: () => setIsFormVisible(true), className: "flex items-center px-4 py-2 rounded-lg bg-[var(--accent-tertiary)] hover:bg-[var(--accent-secondary)] text-white" }, t('addNote'))
         ),
-        isFormVisible && React.createElement(NoteForm),
+        isFormVisible && React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
+            React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingNote ? t('editNoteTitle') : t('addNoteTitle')),
+            React.createElement('input', { type: "text", placeholder: t('noteKeyPlaceholder'), value: key, onChange: e => setKey(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]", required: true }),
+            React.createElement('div', { className: "relative" },
+                React.createElement('textarea', { placeholder: t('noteValuePlaceholder'), value: value, onChange: e => setValue(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-32 resize-none" }),
+                React.createElement('button', { type: "button", onClick: handleRewriteClick, disabled: isRewriting, className: "absolute bottom-3 right-3 flex items-center px-2.5 py-1.5 text-xs rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
+                  isRewriting ? t('rewriting') : React.createElement(React.Fragment, null, React.createElement(SparklesIcon), t('rewriteWithAI'))
+                )
+            ),
+            React.createElement('div', { className: "flex justify-end gap-4 mt-2" },
+                React.createElement('button', { type: "button", onClick: () => { setIsFormVisible(false); setEditingNote(null); }, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
+                React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)]" }, editingNote ? t('updateNote') : t('saveNote'))
+            )
+        ),
         notes.length === 0 ? React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t('noNotes')) :
         React.createElement('div', { className: "space-y-4" }, notes.map(note => React.createElement('div', { key: note.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
             React.createElement('div', { className: "flex justify-between items-start" },
