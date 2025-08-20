@@ -25,7 +25,8 @@ jobs:
   # Single deploy job since we're just deploying
   deploy:
     runs-on: ubuntu-latest
-
+    env: # Or as an environment variable
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
