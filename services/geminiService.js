@@ -1,6 +1,3 @@
-
-
-
 import { GoogleGenAI, Type } from "@google/genai";
 
 if (!process.env.API_KEY) {
@@ -203,4 +200,46 @@ export const generateStory = async (
     console.error("Failed to parse JSON response:", response.text);
     throw new Error("The AI returned an invalid response. Please try again.");
   }
+};
+
+export const rewriteText = async (textToRewrite, language) => {
+    const model = 'gemini-2.5-flash';
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+    
+    const systemInstruction = `You are a helpful assistant for a tabletop RPG player. Your task is to rewrite the provided text to be more narrative, evocative, and well-organized. Enhance the prose and style, but preserve all the key information, names, and events. The output should be only the rewritten text, in ${languageInstruction}.`;
+
+    const fullPrompt = `Please rewrite the following text:\n\n---\n${textToRewrite}\n---`;
+    
+    const contents = { parts: [{ text: fullPrompt }] };
+
+    const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+            systemInstruction,
+        },
+    });
+
+    return response.text.trim();
+};
+
+export const generateCharacterBackground = async (race, heroClass, language) => {
+    const model = 'gemini-2.5-flash';
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+
+    const systemInstruction = `You are an expert storyteller for tabletop RPGs. Your task is to generate a brief, compelling, two-sentence background story for a character. The response must be ONLY the background text and nothing else. The response must be in ${languageInstruction}.`;
+    
+    const fullPrompt = `Generate a background for a ${race} ${heroClass}.`;
+
+    const contents = { parts: [{ text: fullPrompt }] };
+
+    const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+            systemInstruction,
+        },
+    });
+
+    return response.text.trim();
 };

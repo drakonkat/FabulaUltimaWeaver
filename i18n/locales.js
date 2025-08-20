@@ -1,6 +1,3 @@
-
-
-
 export const translations = {
   en: {
     // Header & Language
@@ -12,6 +9,10 @@ export const translations = {
     lightTheme: 'Light',
     arcaneTheme: 'Arcane',
     draconicTheme: 'Draconic',
+    // App Mode
+    appMode: 'App Mode',
+    gmMode: 'Game Master',
+    playerMode: 'Player',
     // Login Screen
     signIn: 'Sign in with Google',
     welcomeMessage: 'Your epic awaits. Sign in to begin weaving your story.',
@@ -54,6 +55,8 @@ export const translations = {
     quantityPlaceholder: 'Qty',
     weightPlaceholder: 'Weight (Opt.)',
     totalWeight: 'Total Weight',
+    randomizeHero: 'Randomize Hero',
+    generatingBackground: 'Generating background...',
     // Monster Manager
     monsterRoster: 'Monster Roster',
     addMonster: 'Add Monster',
@@ -126,6 +129,29 @@ export const translations = {
     loadFromFile: 'Restore from File',
     pasteCampaignData: 'Or paste backup data here...',
     loadData: 'Load Backup',
+    // Player View
+    myGames: 'My Games',
+    newGame: 'New Game',
+    startNewGame: 'Start a New Game',
+    noGames: 'No games yet. Start one!',
+    myHero: 'My Hero',
+    npcNotes: 'NPC Notes',
+    addNpc: 'Add NPC',
+    editNpcTitle: 'Edit NPC',
+    addNpcTitle: 'Add New NPC',
+    npcNamePlaceholder: 'NPC Name (e.g., Elara the Shopkeep)',
+    npcDescriptionPlaceholder: 'Description, notes, relationship...',
+    noNpcs: 'No NPCs noted yet.',
+    campaignNotes: 'Campaign Notes',
+    addNote: 'Add Note',
+    editNoteTitle: 'Edit Note',
+    addNoteTitle: 'Add New Note',
+    noteKeyPlaceholder: 'Note Title (e.g., "The prophecy")',
+    noteValuePlaceholder: 'Details about this note...',
+    noNotes: 'No notes yet.',
+    rewriteWithAI: 'Rewrite with AI',
+    rewriting: 'Rewriting...',
+    limitGames: 'Game limit reached. Delete a game to create a new one.',
     // Footer
     privacyPolicy: 'Privacy Policy',
     termsAndConditions: 'Terms & Conditions',
@@ -140,6 +166,10 @@ export const translations = {
     lightTheme: 'Chiaro',
     arcaneTheme: 'Arcano',
     draconicTheme: 'Draconico',
+    // App Mode
+    appMode: 'Modalità App',
+    gmMode: 'Game Master',
+    playerMode: 'Giocatore',
     // Login Screen
     signIn: 'Accedi con Google',
     welcomeMessage: 'La tua epopea ti attende. Accedi per iniziare a tessere la tua storia.',
@@ -182,6 +212,8 @@ export const translations = {
     quantityPlaceholder: 'Qtà',
     weightPlaceholder: 'Peso (Opz.)',
     totalWeight: 'Peso Totale',
+    randomizeHero: 'Eroe Casuale',
+    generatingBackground: 'Generando la storia...',
     // Monster Manager
     monsterRoster: 'Bestiario',
     addMonster: 'Aggiungi Mostro',
@@ -254,6 +286,29 @@ export const translations = {
     loadFromFile: 'Ripristina da File',
     pasteCampaignData: 'Oppure incolla i dati di backup qui...',
     loadData: 'Carica Backup',
+    // Player View
+    myGames: 'Le Mie Partite',
+    newGame: 'Nuova Partita',
+    startNewGame: 'Inizia una Nuova Partita',
+    noGames: 'Nessuna partita ancora. Iniziane una!',
+    myHero: 'Il Mio Eroe',
+    npcNotes: 'Note PNG',
+    addNpc: 'Aggiungi PNG',
+    editNpcTitle: 'Modifica PNG',
+    addNpcTitle: 'Aggiungi Nuovo PNG',
+    npcNamePlaceholder: 'Nome PNG (es. Elara la Negoziante)',
+    npcDescriptionPlaceholder: 'Descrizione, note, relazione...',
+    noNpcs: 'Nessun PNG annotato.',
+    campaignNotes: 'Note di Campagna',
+    addNote: 'Aggiungi Nota',
+    editNoteTitle: 'Modifica Nota',
+    addNoteTitle: 'Aggiungi Nuova Nota',
+    noteKeyPlaceholder: 'Titolo Nota (es. "La profezia")',
+    noteValuePlaceholder: 'Dettagli su questa nota...',
+    noNotes: 'Nessuna nota ancora.',
+    rewriteWithAI: 'Riscrivi con AI',
+    rewriting: 'Riscrivendo...',
+    limitGames: 'Limite partite raggiunto. Elimina una partita per crearne una nuova.',
     // Footer
     privacyPolicy: 'Informativa sulla Privacy',
     termsAndConditions: 'Termini e Condizioni',

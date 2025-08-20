@@ -1,8 +1,7 @@
 
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { generateStory } from './services/geminiService.js';
+import { generateStory, rewriteText, generateCharacterBackground } from './services/geminiService.js';
 import Header from './components/Header.js';
 import PromptInput from './components/PromptInput.js';
 import LoadingSpinner from './components/LoadingSpinner.js';
@@ -125,8 +124,9 @@ const DiceRoller = () => {
 const getToday = () => new Date().toISOString().split('T')[0];
 
 const defaultState = {
-    version: 4,
+    version: 5,
     campaigns: [],
+    playerGames: [],
     usage: {
         promptsToday: 0,
         lastPromptDate: getToday(),
@@ -190,12 +190,229 @@ const CampaignNameEditor = ({ campaign, onUpdate }) => {
     }, campaign.name);
 };
 
+// START: PLAYER MODE COMPONENTS
+const NpcManager = ({ npcs, onAdd, onUpdate, onRemove }) => {
+    // This is a simplified manager for player notes on NPCs
+    // For brevity, it's combined into a single component.
+    const { t } = useTranslation();
+    const [isFormVisible, setIsFormVisible] = useState(false);
+    const [editingNpc, setEditingNpc] = useState(null);
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+
+    useEffect(() => {
+        if (editingNpc) {
+            setName(editingNpc.name);
+            setDescription(editingNpc.description);
+            setIsFormVisible(true);
+        } else {
+            setName('');
+            setDescription('');
+        }
+    }, [editingNpc]);
+    
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!name.trim()) return;
+        const npcData = { name, description };
+        if (editingNpc) {
+            onUpdate({ ...editingNpc, ...npcData });
+        } else {
+            onAdd(npcData);
+        }
+        setIsFormVisible(false);
+        setEditingNpc(null);
+    };
+    
+    const NpcForm = () => React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
+        React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingNpc ? t('editNpcTitle') : t('addNpcTitle')),
+        React.createElement('input', { type: "text", placeholder: t('npcNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]", required: true }),
+        React.createElement('textarea', { placeholder: t('npcDescriptionPlaceholder'), value: description, onChange: e => setDescription(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-24 resize-none" }),
+        React.createElement('div', { className: "flex justify-end gap-4 mt-2" },
+            React.createElement('button', { type: "button", onClick: () => { setIsFormVisible(false); setEditingNpc(null); }, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
+            React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)]" }, editingNpc ? t('updateHero') : t('saveHero'))
+        )
+    );
+
+    return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
+        React.createElement('div', { className: "flex justify-between items-center mb-4" },
+            React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, t('npcNotes')),
+            !isFormVisible && React.createElement('button', { onClick: () => setIsFormVisible(true), className: "flex items-center px-4 py-2 rounded-lg bg-[var(--accent-tertiary)] hover:bg-[var(--accent-secondary)] text-white" }, t('addNpc'))
+        ),
+        isFormVisible && React.createElement(NpcForm),
+        npcs.length === 0 ? React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t('noNpcs')) :
+        React.createElement('div', { className: "space-y-4" }, npcs.map(npc => React.createElement('div', { key: npc.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
+            React.createElement('div', { className: "flex justify-between items-start" },
+                React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, npc.name),
+                React.createElement('div', { className: "flex gap-2" },
+                    React.createElement('button', { onClick: () => setEditingNpc(npc) }, "Edit"),
+                    React.createElement('button', { onClick: () => onRemove(npc.id) }, "Remove")
+                )
+            ),
+            React.createElement('p', { className: "text-[var(--text-muted)] mt-2 whitespace-pre-wrap" }, npc.description)
+        )))
+    );
+};
+
+const NotesManager = ({ notes, onAdd, onUpdate, onRemove, onRewrite }) => {
+    const { t } = useTranslation();
+    const [isFormVisible, setIsFormVisible] = useState(false);
+    const [editingNote, setEditingNote] = useState(null);
+    const [key, setKey] = useState('');
+    const [value, setValue] = useState('');
+    const [isRewriting, setIsRewriting] = useState(false);
+    
+    useEffect(() => {
+        if (editingNote) {
+            setKey(editingNote.key);
+            setValue(editingNote.value);
+            setIsFormVisible(true);
+        } else {
+            setKey('');
+            setValue('');
+        }
+    }, [editingNote]);
+
+    const handleRewriteClick = async () => {
+        if (!value.trim() || isRewriting) return;
+        setIsRewriting(true);
+        const rewritten = await onRewrite(value);
+        setValue(rewritten);
+        setIsRewriting(false);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!key.trim()) return;
+        const noteData = { key, value };
+        if (editingNote) {
+            onUpdate({ ...editingNote, ...noteData });
+        } else {
+            onAdd(noteData);
+        }
+        setIsFormVisible(false);
+        setEditingNote(null);
+    };
+    
+    const SparklesIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 mr-1.5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 0a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V6h-1a1 1 0 010-2h1V3a1 1 0 011-1zM9 10a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1v-1a1 1 0 011-1zm7-5a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V8h-1a1 1 0 010-2h1V5a1 1 0 011-1z", clipRule: "evenodd" }));
+
+    const NoteForm = () => React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
+        React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingNote ? t('editNoteTitle') : t('addNoteTitle')),
+        React.createElement('input', { type: "text", placeholder: t('noteKeyPlaceholder'), value: key, onChange: e => setKey(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]", required: true }),
+        React.createElement('div', { className: "relative" },
+            React.createElement('textarea', { placeholder: t('noteValuePlaceholder'), value: value, onChange: e => setValue(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-32 resize-none" }),
+            React.createElement('button', { type: "button", onClick: handleRewriteClick, disabled: isRewriting, className: "absolute bottom-3 right-3 flex items-center px-2.5 py-1.5 text-xs rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
+              isRewriting ? t('rewriting') : React.createElement(React.Fragment, null, React.createElement(SparklesIcon), t('rewriteWithAI'))
+            )
+        ),
+        React.createElement('div', { className: "flex justify-end gap-4 mt-2" },
+            React.createElement('button', { type: "button", onClick: () => { setIsFormVisible(false); setEditingNote(null); }, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
+            React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)]" }, editingNote ? t('updateHero') : t('saveHero'))
+        )
+    );
+
+    return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
+        React.createElement('div', { className: "flex justify-between items-center mb-4" },
+            React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, t('campaignNotes')),
+            !isFormVisible && React.createElement('button', { onClick: () => setIsFormVisible(true), className: "flex items-center px-4 py-2 rounded-lg bg-[var(--accent-tertiary)] hover:bg-[var(--accent-secondary)] text-white" }, t('addNote'))
+        ),
+        isFormVisible && React.createElement(NoteForm),
+        notes.length === 0 ? React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t('noNotes')) :
+        React.createElement('div', { className: "space-y-4" }, notes.map(note => React.createElement('div', { key: note.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
+            React.createElement('div', { className: "flex justify-between items-start" },
+                React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, note.key),
+                React.createElement('div', { className: "flex gap-2" },
+                    React.createElement('button', { onClick: () => setEditingNote(note) }, "Edit"),
+                    React.createElement('button', { onClick: () => onRemove(note.id) }, "Remove")
+                )
+            ),
+            React.createElement('p', { className: "text-[var(--text-muted)] mt-2 whitespace-pre-wrap" }, note.value)
+        )))
+    );
+};
+
+const PlayerGameList = ({ games, onSelect, onDelete, onNew, canCreate }) => {
+    const { t, language } = useTranslation();
+    const sortedGames = [...games].sort((a, b) => b.lastModified - a.lastModified);
+    const formatDate = (ts) => new Date(ts).toLocaleDateString(language, { year: 'numeric', month: 'long', day: 'numeric' });
+
+    return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
+        React.createElement('div', { className: "flex justify-between items-center mb-6" },
+            React.createElement('h2', { className: "text-3xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, t('myGames')),
+            React.createElement('button', { onClick: onNew, disabled: !canCreate, title: !canCreate ? t('limitGames') : '', className: "px-4 py-3 font-bold text-sm text-white rounded-lg transition-all bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] disabled:from-gray-500 disabled:to-gray-600" }, t('startNewGame'))
+        ),
+        sortedGames.length === 0 ? React.createElement('p', { className: "text-center py-8 text-[var(--text-muted)] italic text-lg" }, t('noGames')) :
+        React.createElement('div', { className: "space-y-4" }, sortedGames.map(game =>
+            React.createElement('div', { key: game.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex justify-between items-center hover:border-[var(--border-accent-light)] transition-colors" },
+                React.createElement('div', { className: "flex-grow cursor-pointer", onClick: () => onSelect(game.id) },
+                    React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, game.name),
+                    React.createElement('p', { className: "text-sm text-[var(--text-subtle)]" }, `${t('lastModified')}: ${formatDate(game.lastModified)}`)
+                ),
+                React.createElement('button', { onClick: (e) => { e.stopPropagation(); onDelete(game.id); }, className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)]" }, "Delete")
+            )
+        ))
+    );
+};
+
+const PlayerDashboard = ({ game, onUpdate, onRewrite, onGenerateBackground, ...handlers }) => {
+    const { t } = useTranslation();
+    
+    // Handlers for nested objects
+    const handleHeroUpdate = (updatedHero) => onUpdate({ ...game, hero: updatedHero });
+    const handleMonsterAdd = (monster) => onUpdate({ ...game, monsters: [...game.monsters, { ...monster, id: crypto.randomUUID() }] });
+    const handleMonsterUpdate = (updated) => onUpdate({ ...game, monsters: game.monsters.map(m => m.id === updated.id ? updated : m) });
+    const handleMonsterRemove = (id) => onUpdate({ ...game, monsters: game.monsters.filter(m => m.id !== id) });
+    const handleNpcAdd = (npc) => onUpdate({ ...game, npcs: [...game.npcs, { ...npc, id: crypto.randomUUID() }] });
+    const handleNpcUpdate = (updated) => onUpdate({ ...game, npcs: game.npcs.map(n => n.id === updated.id ? updated : n) });
+    const handleNpcRemove = (id) => onUpdate({ ...game, npcs: game.npcs.filter(n => n.id !== id) });
+    const handleNoteAdd = (note) => onUpdate({ ...game, notes: [...game.notes, { ...note, id: crypto.randomUUID() }] });
+    const handleNoteUpdate = (updated) => onUpdate({ ...game, notes: game.notes.map(n => n.id === updated.id ? updated : n) });
+    const handleNoteRemove = (id) => onUpdate({ ...game, notes: game.notes.filter(n => n.id !== id) });
+
+    return React.createElement('div', { className: "animate-fade-in" },
+        React.createElement('div', { className: "w-full max-w-4xl mx-auto text-center mt-8" },
+            React.createElement(CampaignNameEditor, { campaign: game, onUpdate: onUpdate })
+        ),
+        React.createElement(HeroManager, {
+            heroes: game.hero ? [game.hero] : [],
+            onAddHero: handleHeroUpdate, // onAddHero will just set the single hero
+            onUpdateHero: handleHeroUpdate,
+            onRemoveHero: () => onUpdate({ ...game, hero: null }),
+            isPlayerView: true,
+            onRewrite: onRewrite,
+            onGenerateBackground: onGenerateBackground,
+        }),
+        React.createElement(NpcManager, {
+            npcs: game.npcs || [],
+            onAdd: handleNpcAdd,
+            onUpdate: handleNpcUpdate,
+            onRemove: handleNpcRemove,
+        }),
+        React.createElement(MonsterManager, {
+            monsters: game.monsters || [],
+            onAddMonster: handleMonsterAdd,
+            onUpdateMonster: handleMonsterUpdate,
+            onRemoveMonster: handleMonsterRemove,
+        }),
+        React.createElement(NotesManager, {
+            notes: game.notes || [],
+            onAdd: handleNoteAdd,
+            onUpdate: handleNoteUpdate,
+            onRemove: handleNoteRemove,
+            onRewrite: onRewrite,
+        })
+    );
+};
+// END: PLAYER MODE COMPONENTS
+
 const AppContent = () => {
   const isAnonymousMode = useMemo(() => GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID_HERE', []);
   
   const [user, setUser] = useState(null);
   const [appState, setAppState] = useState(defaultState);
+  const [appMode, setAppMode] = useState('gm');
   const [activeCampaignId, setActiveCampaignId] = useState(null);
+  const [activePlayerGameId, setActivePlayerGameId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { language, t } = useTranslation();
@@ -255,6 +472,7 @@ const AppContent = () => {
     setUser(null);
     setAppState(defaultState);
     setActiveCampaignId(null);
+    setActivePlayerGameId(null);
   };
 
   useEffect(() => {
@@ -273,18 +491,18 @@ const AppContent = () => {
             const parsedState = JSON.parse(savedStateJSON);
             const { theme: savedTheme, ...restOfState } = parsedState;
 
-            if (savedTheme) {
-                setTheme(savedTheme);
-            }
-
-            if (restOfState.version === 4) {
+            if (savedTheme) setTheme(savedTheme);
+            
+            if (restOfState.version === 5) {
                 const usage = isAnonymousMode ? restOfState.usage : checkAndResetUsage(restOfState.usage);
                 setAppState({ ...restOfState, usage });
-            } else {
+            } else { // Migration
                  const migratedState = {
                      ...defaultState,
                      campaigns: restOfState.campaigns || [],
+                     playerGames: restOfState.playerGames || [],
                      usage: restOfState.usage || defaultState.usage,
+                     version: 5,
                  };
                  setAppState(migratedState);
             }
@@ -307,8 +525,6 @@ const AppContent = () => {
     
     if (storageKey) {
         try {
-            // We save the theme along with the state for backup purposes,
-            // even though it's managed separately for persistence.
             const stateToSave = { ...appState, theme };
             const appStateJSON = JSON.stringify(stateToSave);
             localStorage.setItem(storageKey, appStateJSON);
@@ -319,6 +535,7 @@ const AppContent = () => {
   }, [appState, theme, user, isAnonymousMode]);
 
   const activeCampaign = useMemo(() => appState.campaigns.find(c => c.id === activeCampaignId), [appState.campaigns, activeCampaignId]);
+  const activePlayerGame = useMemo(() => appState.playerGames.find(g => g.id === activePlayerGameId), [appState.playerGames, activePlayerGameId]);
 
   const handleUpdateCampaign = (updatedCampaign) => {
     setAppState(prev => ({
@@ -351,19 +568,19 @@ const AppContent = () => {
     const newMonster = { ...monsterData, id: crypto.randomUUID() };
     const updatedMonsters = [...(activeCampaign.monsters || []), newMonster];
     handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
-  }, [activeCampaign, handleUpdateCampaign]);
+  }, [activeCampaign]);
 
   const handleUpdateMonster = useCallback((updatedMonster) => {
     if (!activeCampaign) return;
     const updatedMonsters = activeCampaign.monsters.map(m => m.id === updatedMonster.id ? updatedMonster : m);
     handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
-  }, [activeCampaign, handleUpdateCampaign]);
+  }, [activeCampaign]);
 
   const handleRemoveMonster = useCallback((id) => {
     if (!activeCampaign) return;
     const updatedMonsters = activeCampaign.monsters.filter(monster => monster.id !== id);
     handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
-  }, [activeCampaign, handleUpdateCampaign]);
+  }, [activeCampaign]);
 
   const canGenerate = useMemo(() => {
     if (isAnonymousMode) return true;
@@ -424,16 +641,49 @@ const AppContent = () => {
     }
   }, [activeCampaign, language, canGenerate, t, isAnonymousMode]);
 
+  const handleRewrite = useCallback(async (text) => {
+      if (!canGenerate) {
+          setError(t('limitDailyPrompts'));
+          return text;
+      }
+      setError(null);
+      try {
+          const rewrittenText = await rewriteText(text, language);
+          incrementUsage();
+          return rewrittenText;
+      } catch (err) {
+          setError(err.message || 'An unknown error occurred.');
+          console.error(err);
+          return text; // Return original text on error
+      }
+  }, [canGenerate, t, language, isAnonymousMode]);
+  
+  const handleGenerateBackground = useCallback(async (race, heroClass) => {
+      if (!canGenerate) {
+          setError(t('limitDailyPrompts'));
+          return '';
+      }
+      setError(null);
+      try {
+          const background = await generateCharacterBackground(race, heroClass, language);
+          incrementUsage();
+          return background;
+      } catch (err) {
+          setError(err.message || 'An unknown error occurred.');
+          console.error(err);
+          return ''; // Return empty on error
+      }
+  }, [canGenerate, t, language, isAnonymousMode]);
+
   const handleLoadAppState = useCallback((loadedState) => {
     setError(null);
     const { theme: loadedTheme, ...restOfState } = loadedState;
 
-    if (restOfState.version >= 3 && restOfState.campaigns && restOfState.usage) {
-        if (loadedTheme) {
-            setTheme(loadedTheme);
-        }
+    if ((restOfState.version >= 3) && restOfState.campaigns && restOfState.usage) {
+        if (loadedTheme) setTheme(loadedTheme);
         setAppState(restOfState);
         setActiveCampaignId(null);
+        setActivePlayerGameId(null);
     } else {
         setError(t('errorInvalidData'));
     }
@@ -466,83 +716,114 @@ const AppContent = () => {
   const handleLoadExampleCampaign = useCallback(() => {
     const exampleName = t('exampleCampaignName');
     const existingCampaign = appState.campaigns.find(c => c.name === exampleName);
-
     if (existingCampaign) {
       setActiveCampaignId(existingCampaign.id);
       return;
     }
-
     const newCampaignId = crypto.randomUUID();
     const newCampaign = {
-      ...exampleCampaignData,
-      name: exampleName,
-      id: newCampaignId,
-      lastModified: Date.now(),
+      ...exampleCampaignData, name: exampleName, id: newCampaignId, lastModified: Date.now(),
       heroes: exampleCampaignData.heroes.map(h => ({ ...h, id: crypto.randomUUID() })),
       monsters: exampleCampaignData.monsters.map(m => ({ ...m, id: crypto.randomUUID() })),
     };
-    
     setAppState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign] }));
     setActiveCampaignId(newCampaignId);
   }, [appState.campaigns, t]);
 
   const handleDeleteCampaign = useCallback((id) => {
     if (window.confirm(t('deleteConfirmation'))) {
-        setAppState(prev => ({
-          ...prev, 
-          campaigns: prev.campaigns.filter(c => c.id !== id) 
-        }));
-        if (activeCampaignId === id) {
-            setActiveCampaignId(null);
-        }
+        setAppState(prev => ({ ...prev, campaigns: prev.campaigns.filter(c => c.id !== id) }));
+        if (activeCampaignId === id) setActiveCampaignId(null);
     }
   }, [t, activeCampaignId]);
+
+  // Player Game Handlers
+  const canCreatePlayerGame = useMemo(() => {
+    if (isAnonymousMode) return true;
+    return (appState.playerGames || []).length < MAX_CAMPAIGNS;
+  }, [isAnonymousMode, appState.playerGames]);
+  
+  const handleNewPlayerGame = () => {
+    if (!canCreatePlayerGame) {
+      setError(t('limitGames'));
+      return;
+    }
+    const newId = crypto.randomUUID();
+    const newGame = {
+      id: newId, name: t('newGame'), hero: null, monsters: [], npcs: [], notes: [], lastModified: Date.now(),
+    };
+    setAppState(prev => ({ ...prev, playerGames: [...(prev.playerGames || []), newGame] }));
+    setActivePlayerGameId(newId);
+  };
+  
+  const handleUpdatePlayerGame = (updatedGame) => {
+    setAppState(prev => ({
+      ...prev,
+      playerGames: prev.playerGames.map(g => g.id === updatedGame.id ? { ...updatedGame, lastModified: Date.now() } : g),
+    }));
+  };
+  
+  const handleDeletePlayerGame = (id) => {
+    if (window.confirm(t('deleteConfirmation'))) {
+      setAppState(prev => ({ ...prev, playerGames: prev.playerGames.filter(g => g.id !== id) }));
+      if (activePlayerGameId === id) setActivePlayerGameId(null);
+    }
+  };
   
   if (!isAnonymousMode && !user) {
     return React.createElement(LoginScreen, null);
   }
+  
+  const ModeSwitcher = ({ mode, onModeChange }) => {
+      return React.createElement('div', { className: "p-1 bg-[var(--bg-secondary)] rounded-lg flex text-sm shadow-md border border-[var(--border-secondary)]" },
+          React.createElement('button', {
+              onClick: () => onModeChange('gm'),
+              className: `px-3 py-1 rounded-md transition-colors font-medium ${mode === 'gm' ? 'bg-[var(--accent-secondary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`
+          }, t('gmMode')),
+          React.createElement('button', {
+              onClick: () => onModeChange('player'),
+              className: `px-3 py-1 rounded-md transition-colors font-medium ${mode === 'player' ? 'bg-[var(--accent-secondary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`
+          }, t('playerMode'))
+      );
+  };
 
   const renderActiveCampaign = () => {
-      if (isLoading && !activeCampaign?.storyData) {
-          return React.createElement(LoadingSpinner, null);
-      }
+      if (isLoading && !activeCampaign?.storyData) return React.createElement(LoadingSpinner, null);
       if (activeCampaign) {
           return React.createElement('div', { className: "animate-fade-in" },
               React.createElement('div', { className: "w-full max-w-4xl mx-auto text-center mt-8" },
                   React.createElement(CampaignNameEditor, { campaign: activeCampaign, onUpdate: handleUpdateCampaign })
               ),
-              React.createElement(HeroManager, {
-                  heroes: activeCampaign.heroes,
-                  onAddHero: handleAddHero,
-                  onUpdateHero: handleUpdateHero,
-                  onRemoveHero: handleRemoveHero,
-                  gameSystem: activeCampaign.gameSettings.system
-              }),
-              React.createElement(MonsterManager, {
-                  monsters: activeCampaign.monsters || [],
-                  onAddMonster: handleAddMonster,
-                  onUpdateMonster: handleUpdateMonster,
-                  onRemoveMonster: handleRemoveMonster,
-              }),
-              !activeCampaign.storyData && !isLoading && React.createElement(PromptInput, {
-                  onGenerate: handleGenerate,
-                  isLoading: isLoading,
-                  canGenerate: canGenerate
-              }),
+              React.createElement(HeroManager, { heroes: activeCampaign.heroes, onAddHero: handleAddHero, onUpdateHero: handleUpdateHero, onRemoveHero: handleRemoveHero, gameSystem: activeCampaign.gameSettings.system }),
+              React.createElement(MonsterManager, { monsters: activeCampaign.monsters || [], onAddMonster: handleAddMonster, onUpdateMonster: handleUpdateMonster, onRemoveMonster: handleRemoveMonster }),
+              !activeCampaign.storyData && !isLoading && React.createElement(PromptInput, { onGenerate: handleGenerate, isLoading, canGenerate }),
               isLoading && activeCampaign.storyData && React.createElement(LoadingSpinner, null),
               activeCampaign.storyData && !isLoading && React.createElement('div', { className: "mt-8 animate-fade-in-up" },
-                  React.createElement(ContinuationInput, {
-                      story: activeCampaign.storyData,
-                      onContinue: handleContinue,
-                      isLoading: isLoading,
-                      canGenerate: canGenerate
-                  }),
+                  React.createElement(ContinuationInput, { story: activeCampaign.storyData, onContinue: handleContinue, isLoading, canGenerate }),
                   React.createElement(StoryDisplay, { data: activeCampaign.storyData })
               )
           );
       }
       return null;
   };
+  
+  const renderAppContent = () => {
+      if (appMode === 'gm') {
+          return !activeCampaignId ? 
+            React.createElement('div', { className: "animate-fade-in" },
+                React.createElement(CampaignList, { campaigns: appState.campaigns, onSelect: setActiveCampaignId, onDelete: handleDeleteCampaign, onNew: handleNewCampaign, canCreate: canCreateCampaign, onLoadExample: handleLoadExampleCampaign }),
+                React.createElement(BackupManager, { appState: { ...appState, theme }, onLoad: handleLoadAppState })
+            ) : renderActiveCampaign();
+      } else { // Player Mode
+          return !activePlayerGameId ?
+            React.createElement('div', { className: "animate-fade-in" },
+                React.createElement(PlayerGameList, { games: appState.playerGames || [], onSelect: setActivePlayerGameId, onDelete: handleDeletePlayerGame, onNew: handleNewPlayerGame, canCreate: canCreatePlayerGame }),
+                 React.createElement(BackupManager, { appState: { ...appState, theme }, onLoad: handleLoadAppState })
+            ) :
+            (activePlayerGame && React.createElement(PlayerDashboard, { game: activePlayerGame, onUpdate: handleUpdatePlayerGame, onRewrite: handleRewrite, onGenerateBackground: handleGenerateBackground }));
+      }
+  };
+
 
   return React.createElement(ThemeContext.Provider, { value: { theme, setTheme } },
       React.createElement('div', { 
@@ -553,11 +834,23 @@ const AppContent = () => {
           }
       },
       React.createElement(Header, { 
-          onBack: () => setActiveCampaignId(null), 
-          showBack: !!activeCampaignId, 
+          onBack: () => appMode === 'gm' ? setActiveCampaignId(null) : setActivePlayerGameId(null),
+          showBack: !!activeCampaignId || !!activePlayerGameId, 
           user: isAnonymousMode ? null : user, 
-          onSignOut: handleSignOut 
+          onSignOut: handleSignOut
       }),
+      !(!!activeCampaignId || !!activePlayerGameId) && React.createElement('div', {
+            className: "container mx-auto flex justify-center py-4 animate-fade-in"
+        },
+          React.createElement(ModeSwitcher, {
+              mode: appMode,
+              onModeChange: (mode) => {
+                  setAppMode(mode);
+                  setActiveCampaignId(null);
+                  setActivePlayerGameId(null);
+              }
+          })
+      ),
       React.createElement('main', { className: "container mx-auto px-4 pb-16 flex-grow" },
           error && React.createElement('div', {
               className: "w-full max-w-4xl mx-auto my-4 p-4 bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger-text)] rounded-lg text-center",
@@ -567,17 +860,7 @@ const AppContent = () => {
               React.createElement('p', { className: "font-bold" }, t('errorTitle')),
               React.createElement('p', null, error)
           ),
-          !activeCampaignId ? React.createElement('div', { className: "animate-fade-in" },
-              React.createElement(CampaignList, {
-                  campaigns: appState.campaigns,
-                  onSelect: setActiveCampaignId,
-                  onDelete: handleDeleteCampaign,
-                  onNew: handleNewCampaign,
-                  canCreate: canCreateCampaign,
-                  onLoadExample: handleLoadExampleCampaign
-              }),
-              React.createElement(BackupManager, { appState: { ...appState, theme }, onLoad: handleLoadAppState })
-          ) : renderActiveCampaign()
+          renderAppContent()
       ),
       React.createElement(Footer, null),
       React.createElement(DiceRoller, null),

@@ -1,9 +1,7 @@
-
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
+import { randomizerData } from '../data/randomizerData.js';
 
 const UserPlusIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" },
     React.createElement('path', { d: "M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v2h-2a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2v-2z" })
@@ -18,12 +16,20 @@ const PencilIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/
 const PlusIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-1", viewBox: "0 0 20 20", fill: "currentColor" },
     React.createElement('path', { fillRule: "evenodd", d: "M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z", clipRule: "evenodd" })
 );
+const SparklesIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 mr-1.5", viewBox: "0 0 20 20", fill: "currentColor" }, 
+    React.createElement('path', { fillRule: "evenodd", d: "M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 0a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V6h-1a1 1 0 010-2h1V3a1 1 0 011-1zM9 10a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1v-1a1 1 0 011-1zm7-5a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V8h-1a1 1 0 010-2h1V5a1 1 0 011-1z", clipRule: "evenodd" })
+);
+const DiceIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" },
+    React.createElement('path', { d: "M10 2a8 8 0 100 16 8 8 0 000-16zM6.343 4.929A6 6 0 0115.07 13.657L4.93 3.514a6.014 6.014 0 011.414 1.414zM4.929 6.343L13.657 15.07A6 6 0 016.343 4.93z" })
+);
 
 
-const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem }) => {
+const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem, isPlayerView, onRewrite, onGenerateBackground }) => {
     const { t } = useTranslation();
     const [isFormVisible, setIsFormVisible] = useState(false);
     const [editingHero, setEditingHero] = useState(null);
+    const [isRewriting, setIsRewriting] = useState(false);
+    const [isRandomizing, setIsRandomizing] = useState(false);
     
     // Form State
     const [name, setName] = useState('');
@@ -46,6 +52,12 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
         ]);
         setInventory([]);
     };
+
+    useEffect(() => {
+        if (isPlayerView && !heroes.length && !isFormVisible) {
+            setIsFormVisible(true);
+        }
+    }, [isPlayerView, heroes, isFormVisible]);
 
     useEffect(() => {
         if (editingHero) {
@@ -77,6 +89,52 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             resetForm();
         }
     }, [editingHero, t]);
+    
+    const handleRewriteClick = async () => {
+        if (!background.trim() || isRewriting || !onRewrite) return;
+        setIsRewriting(true);
+        const rewrittenText = await onRewrite(background);
+        setBackground(rewrittenText);
+        setIsRewriting(false);
+    };
+    
+    const handleRandomize = async () => {
+        if (isRandomizing) return;
+        setIsRandomizing(true);
+        
+        const { firstNames, lastNames, genders, races, classes, appearanceParts, baseStats } = randomizerData;
+        const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        
+        const randomRace = rand(races);
+        const randomClass = rand(classes);
+
+        setName(`${rand(firstNames)} ${rand(lastNames)}`);
+        setGender(rand(genders));
+        setAge(String(Math.floor(Math.random() * 43) + 18)); // 18-60
+        setRace(randomRace);
+        setHeroClass(randomClass);
+        setAppearance(`${rand(appearanceParts.heights)}, with ${rand(appearanceParts.hair)} hair, ${rand(appearanceParts.eyes)} eyes, and ${rand(appearanceParts.features)}.`);
+        setStatus('Healthy');
+        
+        const randomStats = baseStats.map(stat => ({
+            id: crypto.randomUUID(),
+            key: stat,
+            value: String(Math.floor(Math.random() * 11) + 8) // 8-18
+        }));
+        const hp = String(Math.floor(Math.random() * 11) + 10); // 10-20
+        setStats([
+            { id: crypto.randomUUID(), key: t('maxHP'), value: hp },
+            { id: crypto.randomUUID(), key: t('currentHP'), value: hp },
+            ...randomStats,
+        ]);
+        setInventory([]);
+
+        setBackground(t('generatingBackground'));
+        const generatedBg = await onGenerateBackground(randomRace, randomClass);
+        setBackground(generatedBg);
+        
+        setIsRandomizing(false);
+    };
 
     const handleOpenFormForAdd = () => {
         setEditingHero(null);
@@ -148,8 +206,8 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 .map(({ id, ...rest }) => rest);
 
             const heroData = { name, gender, age, race, class: heroClass, appearance, background, status, stats: finalStats, inventory: finalInventory };
-            if (editingHero) {
-                onUpdateHero({ ...editingHero, ...heroData });
+            if (editingHero || (isPlayerView && heroes.length > 0)) {
+                onUpdateHero({ ...(editingHero || heroes[0]), ...heroData });
             } else {
                 onAddHero(heroData);
             }
@@ -167,7 +225,12 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     }, [inventory]);
 
     const form = React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
-        React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingHero ? t('editHeroTitle') : t('addHeroTitle')),
+        React.createElement('div', { className: "flex justify-between items-center"},
+            React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingHero ? t('editHeroTitle') : t('addHeroTitle')),
+            isPlayerView && React.createElement('button', { type: "button", onClick: handleRandomize, disabled: isRandomizing, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
+                React.createElement(DiceIcon), t('randomizeHero')
+            )
+        ),
         React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
             React.createElement('input', { type: "text", placeholder: t('heroNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true }),
             React.createElement('input', { type: "text", placeholder: t('heroGenderPlaceholder'), value: gender, onChange: e => setGender(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
@@ -177,7 +240,12 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             React.createElement('input', { type: "text", placeholder: t('statusPlaceholder'), value: status, onChange: e => setStatus(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true })
         ),
         React.createElement('textarea', { placeholder: t('heroAppearancePlaceholder'), value: appearance, onChange: e => setAppearance(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-20 resize-none" }),
-        React.createElement('textarea', { placeholder: t('backgroundPlaceholder'), value: background, onChange: e => setBackground(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-24 resize-none", required: true }),
+        React.createElement('div', { className: 'relative' },
+            React.createElement('textarea', { placeholder: t('backgroundPlaceholder'), value: background, onChange: e => setBackground(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-24 resize-none", required: true, disabled: isRandomizing }),
+            isPlayerView && React.createElement('button', { type: "button", onClick: handleRewriteClick, disabled: isRewriting || isRandomizing, className: "absolute bottom-3 right-3 flex items-center px-2.5 py-1.5 text-xs rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
+                isRewriting ? t('rewriting') : React.createElement(React.Fragment, null, React.createElement(SparklesIcon), t('rewriteWithAI'))
+            )
+        ),
         React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
             React.createElement('div', { className: "flex justify-between items-center mb-2" },
                 React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('attributes')),
@@ -215,7 +283,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             )
         ),
         React.createElement('div', { className: "flex justify-end gap-4 mt-4" },
-            React.createElement('button', { type: "button", onClick: handleCancel, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] transition-colors" }, t('cancel')),
+            !isPlayerView && React.createElement('button', { type: "button", onClick: handleCancel, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] transition-colors" }, t('cancel')),
             React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] hover:from-[var(--highlight-primary-to)] hover:to-[var(--highlight-primary-from)]" }, editingHero ? t('updateHero') : t('saveHero'))
         )
     );
@@ -269,8 +337,8 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
 
     return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
         React.createElement('div', { className: "flex flex-wrap gap-4 justify-between items-center mb-4" },
-            React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, t('partyRoster')),
-            React.createElement('div', { className: "flex gap-2" },
+            React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, isPlayerView ? t('myHero') : t('partyRoster')),
+            !isPlayerView && React.createElement('div', { className: "flex gap-2" },
                 React.createElement('select', { onChange: handleAddFromTemplate, className: "bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-accent)] rounded-lg py-2 px-3 text-sm focus:ring-[var(--accent-secondary)] focus:border-[var(--accent-secondary)] hover:bg-[var(--bg-quaternary)] transition-colors", 'aria-label': t('addFromTemplate') },
                     React.createElement('option', { value: "" }, t('selectTemplate')),
                     ...heroTemplates.map(template => React.createElement('option', { key: template.name, value: template.name }, template.name))
@@ -281,7 +349,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             )
         ),
         isFormVisible && form,
-        React.createElement('div', { className: "space-y-4" }, heroList)
+        React.createElement('div', { className: "space-y-4" }, !isFormVisible && heroList)
     );
 };
 
