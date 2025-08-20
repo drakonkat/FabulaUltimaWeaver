@@ -18,6 +18,36 @@ import { ThemeContext } from './hooks/useTheme.js';
 import { MAX_CAMPAIGNS, MAX_DAILY_PROMPTS, GOOGLE_CLIENT_ID } from './config.js';
 import { exampleCampaignData } from './data/exampleCampaign.js';
 
+// START: Confirmation Modal
+const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
+    const { t } = useTranslation();
+    if (!isOpen) return null;
+
+    return React.createElement('div', {
+        className: "fixed inset-0 bg-black/70 z-[100] flex items-center justify-center animate-fade-in",
+        'aria-modal': true,
+        role: "dialog"
+    },
+        React.createElement('div', {
+            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-md m-4 border-2 border-[var(--border-accent)]"
+        },
+            React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)] mb-4" }, title),
+            React.createElement('p', { className: "text-[var(--text-secondary)] mb-6" }, message),
+            React.createElement('div', { className: "flex justify-end gap-4" },
+                React.createElement('button', {
+                    onClick: onClose,
+                    className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] transition-colors"
+                }, t('cancel')),
+                React.createElement('button', {
+                    onClick: onConfirm,
+                    className: "px-6 py-2 font-bold text-white rounded-lg bg-[var(--danger)] hover:opacity-90 transition-opacity"
+                }, t('confirmDelete'))
+            )
+        )
+    );
+};
+// END: Confirmation Modal
+
 // START: Dice Roller Components
 const DieResultIcon = () => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
@@ -354,20 +384,37 @@ const PlayerGameList = ({ games, onSelect, onDelete, onNew, canCreate }) => {
     );
 };
 
-const PlayerDashboard = ({ game, onUpdate, onRewrite, onGenerateBackground, ...handlers }) => {
+const PlayerDashboard = ({ game, onUpdate, onRewrite, onGenerateBackground, openConfirmModal }) => {
     const { t } = useTranslation();
     
     // Handlers for nested objects
     const handleHeroUpdate = (updatedHero) => onUpdate({ ...game, hero: updatedHero });
+    const handleRemoveHero = () => openConfirmModal({
+        title: t('removeHeroTitle'),
+        message: t('removeHeroConfirmation'),
+        onConfirm: () => onUpdate({ ...game, hero: null }),
+    });
     const handleMonsterAdd = (monster) => onUpdate({ ...game, monsters: [...game.monsters, { ...monster, id: crypto.randomUUID() }] });
     const handleMonsterUpdate = (updated) => onUpdate({ ...game, monsters: game.monsters.map(m => m.id === updated.id ? updated : m) });
-    const handleMonsterRemove = (id) => onUpdate({ ...game, monsters: game.monsters.filter(m => m.id !== id) });
+    const handleMonsterRemove = (id) => openConfirmModal({
+        title: t('removeMonsterTitle'),
+        message: t('removeMonsterConfirmation'),
+        onConfirm: () => onUpdate({ ...game, monsters: game.monsters.filter(m => m.id !== id) })
+    });
     const handleNpcAdd = (npc) => onUpdate({ ...game, npcs: [...game.npcs, { ...npc, id: crypto.randomUUID() }] });
     const handleNpcUpdate = (updated) => onUpdate({ ...game, npcs: game.npcs.map(n => n.id === updated.id ? updated : n) });
-    const handleNpcRemove = (id) => onUpdate({ ...game, npcs: game.npcs.filter(n => n.id !== id) });
+    const handleNpcRemove = (id) => openConfirmModal({
+        title: t('removeNpcTitle'),
+        message: t('removeNpcConfirmation'),
+        onConfirm: () => onUpdate({ ...game, npcs: game.npcs.filter(n => n.id !== id) })
+    });
     const handleNoteAdd = (note) => onUpdate({ ...game, notes: [...game.notes, { ...note, id: crypto.randomUUID() }] });
     const handleNoteUpdate = (updated) => onUpdate({ ...game, notes: game.notes.map(n => n.id === updated.id ? updated : n) });
-    const handleNoteRemove = (id) => onUpdate({ ...game, notes: game.notes.filter(n => n.id !== id) });
+    const handleNoteRemove = (id) => openConfirmModal({
+        title: t('removeNoteTitle'),
+        message: t('removeNoteConfirmation'),
+        onConfirm: () => onUpdate({ ...game, notes: game.notes.filter(n => n.id !== id) })
+    });
 
     return React.createElement('div', { className: "animate-fade-in" },
         React.createElement('div', { className: "w-full max-w-4xl mx-auto text-center mt-8" },
@@ -377,7 +424,7 @@ const PlayerDashboard = ({ game, onUpdate, onRewrite, onGenerateBackground, ...h
             heroes: game.hero ? [game.hero] : [],
             onAddHero: handleHeroUpdate, // onAddHero will just set the single hero
             onUpdateHero: handleHeroUpdate,
-            onRemoveHero: () => onUpdate({ ...game, hero: null }),
+            onRemoveHero: handleRemoveHero,
             isPlayerView: true,
             onRewrite: onRewrite,
             onGenerateBackground: onGenerateBackground,
@@ -543,6 +590,25 @@ const AppContent = () => {
         campaigns: prev.campaigns.map(c => c.id === updatedCampaign.id ? { ...updatedCampaign, lastModified: Date.now() } : c),
     }));
   };
+  
+  // Modal State
+  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
+  const openConfirmModal = useCallback(({ title, message, onConfirm }) => {
+    setModalState({ isOpen: true, title, message, onConfirm });
+  }, []);
+
+  const closeConfirmModal = useCallback(() => {
+    setModalState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    if (modalState.onConfirm) {
+        modalState.onConfirm();
+    }
+    closeConfirmModal();
+  }, [modalState.onConfirm, closeConfirmModal]);
+
 
   const handleAddHero = useCallback((heroData) => {
     if (!activeCampaign) return;
@@ -558,10 +624,16 @@ const AppContent = () => {
   }, [activeCampaign]);
 
   const handleRemoveHero = useCallback((id) => {
-    if (!activeCampaign) return;
-    const updatedHeroes = activeCampaign.heroes.filter(hero => hero.id !== id);
-    handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
-  }, [activeCampaign]);
+    openConfirmModal({
+        title: t('removeHeroTitle'),
+        message: t('removeHeroConfirmation'),
+        onConfirm: () => {
+            if (!activeCampaign) return;
+            const updatedHeroes = activeCampaign.heroes.filter(hero => hero.id !== id);
+            handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
+        }
+    });
+  }, [activeCampaign, openConfirmModal, t]);
   
   const handleAddMonster = useCallback((monsterData) => {
     if (!activeCampaign) return;
@@ -577,10 +649,16 @@ const AppContent = () => {
   }, [activeCampaign]);
 
   const handleRemoveMonster = useCallback((id) => {
-    if (!activeCampaign) return;
-    const updatedMonsters = activeCampaign.monsters.filter(monster => monster.id !== id);
-    handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
-  }, [activeCampaign]);
+    openConfirmModal({
+        title: t('removeMonsterTitle'),
+        message: t('removeMonsterConfirmation'),
+        onConfirm: () => {
+            if (!activeCampaign) return;
+            const updatedMonsters = activeCampaign.monsters.filter(monster => monster.id !== id);
+            handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+        }
+    });
+  }, [activeCampaign, openConfirmModal, t]);
 
   const canGenerate = useMemo(() => {
     if (isAnonymousMode) return true;
@@ -731,11 +809,15 @@ const AppContent = () => {
   }, [appState.campaigns, t]);
 
   const handleDeleteCampaign = useCallback((id) => {
-    if (window.confirm(t('deleteConfirmation'))) {
-        setAppState(prev => ({ ...prev, campaigns: prev.campaigns.filter(c => c.id !== id) }));
-        if (activeCampaignId === id) setActiveCampaignId(null);
-    }
-  }, [t, activeCampaignId]);
+    openConfirmModal({
+        title: t('deleteCampaign'),
+        message: t('deleteConfirmation'),
+        onConfirm: () => {
+            setAppState(prev => ({ ...prev, campaigns: prev.campaigns.filter(c => c.id !== id) }));
+            if (activeCampaignId === id) setActiveCampaignId(null);
+        }
+    });
+  }, [t, activeCampaignId, openConfirmModal]);
 
   // Player Game Handlers
   const canCreatePlayerGame = useMemo(() => {
@@ -763,12 +845,16 @@ const AppContent = () => {
     }));
   };
   
-  const handleDeletePlayerGame = (id) => {
-    if (window.confirm(t('deleteConfirmation'))) {
-      setAppState(prev => ({ ...prev, playerGames: prev.playerGames.filter(g => g.id !== id) }));
-      if (activePlayerGameId === id) setActivePlayerGameId(null);
-    }
-  };
+  const handleDeletePlayerGame = useCallback((id) => {
+    openConfirmModal({
+        title: t('deleteGameTitle'),
+        message: t('deleteGameConfirmation'),
+        onConfirm: () => {
+            setAppState(prev => ({ ...prev, playerGames: prev.playerGames.filter(g => g.id !== id) }));
+            if (activePlayerGameId === id) setActivePlayerGameId(null);
+        }
+    });
+  }, [t, activePlayerGameId, openConfirmModal]);
   
   if (!isAnonymousMode && !user) {
     return React.createElement(LoginScreen, null);
@@ -820,7 +906,7 @@ const AppContent = () => {
                 React.createElement(PlayerGameList, { games: appState.playerGames || [], onSelect: setActivePlayerGameId, onDelete: handleDeletePlayerGame, onNew: handleNewPlayerGame, canCreate: canCreatePlayerGame }),
                  React.createElement(BackupManager, { appState: { ...appState, theme }, onLoad: handleLoadAppState })
             ) :
-            (activePlayerGame && React.createElement(PlayerDashboard, { game: activePlayerGame, onUpdate: handleUpdatePlayerGame, onRewrite: handleRewrite, onGenerateBackground: handleGenerateBackground }));
+            (activePlayerGame && React.createElement(PlayerDashboard, { game: activePlayerGame, onUpdate: handleUpdatePlayerGame, onRewrite: handleRewrite, onGenerateBackground: handleGenerateBackground, openConfirmModal: openConfirmModal }));
       }
   };
 
@@ -864,6 +950,13 @@ const AppContent = () => {
       ),
       React.createElement(Footer, null),
       React.createElement(DiceRoller, null),
+      React.createElement(ConfirmModal, {
+        isOpen: modalState.isOpen,
+        onClose: closeConfirmModal,
+        onConfirm: handleConfirm,
+        title: modalState.title,
+        message: modalState.message,
+      }),
       React.createElement('style', {
           dangerouslySetInnerHTML: {
             __html: `
