@@ -20,7 +20,7 @@ If you’re a busy GM and want fast, inspiring material that fits your table’s
   - Story name
   - NPC list (with names and descriptions)
   - Background/lore
-  - A GM read‑aloud paragraph
+  - A GM read‑aloud paragraph 
   - Optional: a combat suggestion (only when it makes sense)
 - You can then continue the story by feeding back what your players did.
 
