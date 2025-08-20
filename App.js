@@ -1,13 +1,16 @@
 
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+
+
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { generateStory, generateHeroPortrait } from './services/geminiService.js';
+import { generateStory } from './services/geminiService.js';
 import Header from './components/Header.js';
 import PromptInput from './components/PromptInput.js';
 import LoadingSpinner from './components/LoadingSpinner.js';
 import StoryDisplay from './components/StoryDisplay.js';
 import HeroManager from './components/HeroManager.js';
+import MonsterManager from './components/MonsterManager.js';
 import ContinuationInput from './components/ContinuationInput.js';
 import CampaignList from './components/CampaignList.js';
 import BackupManager from './components/BackupManager.js';
@@ -27,6 +30,63 @@ const defaultState = {
         promptsToday: 0,
         lastPromptDate: getToday(),
     },
+};
+
+const CampaignNameEditor = ({ campaign, onUpdate }) => {
+    const { t } = useTranslation();
+    const [name, setName] = useState(campaign.name);
+    const [isEditing, setIsEditing] = useState(false);
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        setName(campaign.name);
+    }, [campaign.name]);
+
+    useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [isEditing]);
+    
+    const handleSave = () => {
+        if (name.trim() && campaign.name !== name.trim()) {
+            onUpdate({ ...campaign, name: name.trim() });
+        } else {
+            setName(campaign.name);
+        }
+        setIsEditing(false);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleSave();
+        } else if (e.key === 'Escape') {
+            setName(campaign.name);
+            setIsEditing(false);
+        }
+    };
+
+    if (isEditing) {
+        return React.createElement('input', {
+            ref: inputRef,
+            type: 'text',
+            value: name,
+            onChange: e => setName(e.target.value),
+            onBlur: handleSave,
+            onKeyDown: handleKeyDown,
+            className: "text-4xl md:text-5xl font-bold text-center text-[var(--highlight-secondary)] bg-transparent border-b-2 border-[var(--border-accent)] focus:outline-none w-full",
+            style: { fontFamily: 'serif' },
+            'aria-label': "Campaign Name"
+        });
+    }
+
+    return React.createElement('h1', {
+        className: "text-4xl md:text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-b from-[var(--highlight-tertiary)] to-[var(--highlight-primary-from)] cursor-pointer hover:opacity-80 transition-opacity",
+        style: { fontFamily: 'serif' },
+        onClick: () => setIsEditing(true),
+        title: t('editCampaignName')
+    }, campaign.name);
 };
 
 const AppContent = () => {
@@ -185,6 +245,25 @@ const AppContent = () => {
     handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
   }, [activeCampaign]);
   
+  const handleAddMonster = useCallback((monsterData) => {
+    if (!activeCampaign) return;
+    const newMonster = { ...monsterData, id: crypto.randomUUID() };
+    const updatedMonsters = [...(activeCampaign.monsters || []), newMonster];
+    handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+  }, [activeCampaign, handleUpdateCampaign]);
+
+  const handleUpdateMonster = useCallback((updatedMonster) => {
+    if (!activeCampaign) return;
+    const updatedMonsters = activeCampaign.monsters.map(m => m.id === updatedMonster.id ? updatedMonster : m);
+    handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+  }, [activeCampaign, handleUpdateCampaign]);
+
+  const handleRemoveMonster = useCallback((id) => {
+    if (!activeCampaign) return;
+    const updatedMonsters = activeCampaign.monsters.filter(monster => monster.id !== id);
+    handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+  }, [activeCampaign, handleUpdateCampaign]);
+
   const canGenerate = useMemo(() => {
     if (isAnonymousMode) return true;
     const currentUsage = checkAndResetUsage(appState.usage);
@@ -204,7 +283,7 @@ const AppContent = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await generateStory(prompt, activeCampaign.heroes, language, imageFile, gameSystem, campaignTone);
+      const data = await generateStory(prompt, activeCampaign.heroes, activeCampaign.monsters, language, imageFile, gameSystem, campaignTone);
       const updatedCampaign = { 
           ...activeCampaign, 
           storyData: data, 
@@ -229,12 +308,11 @@ const AppContent = () => {
     setIsLoading(true);
     setError(null);
     try {
-        const { audioFile, ...restDetails } = details;
         const continuationDetails = {
             previousStory: activeCampaign.storyData,
-            details: restDetails,
+            details: details,
         };
-        const data = await generateStory(details.nextPrompt, activeCampaign.heroes, language, undefined, activeCampaign.gameSettings.system, activeCampaign.gameSettings.tone, continuationDetails, audioFile);
+        const data = await generateStory(details.nextPrompt, activeCampaign.heroes, activeCampaign.monsters, language, undefined, activeCampaign.gameSettings.system, activeCampaign.gameSettings.tone, continuationDetails);
         handleUpdateCampaign({ ...activeCampaign, storyData: data });
         incrementUsage();
     } catch (err) {
@@ -244,27 +322,6 @@ const AppContent = () => {
         setIsLoading(false);
     }
   }, [activeCampaign, language, canGenerate, t, isAnonymousMode]);
-
-  const handleGeneratePortrait = useCallback(async (heroId) => {
-    if (!activeCampaign || !canGenerate) {
-        if (!canGenerate) setError(t('limitDailyPrompts'));
-        throw new Error(t('limitDailyPrompts'));
-    };
-    const hero = activeCampaign.heroes.find(h => h.id === heroId);
-    if (!hero) return;
-
-    try {
-      const imageBytes = await generateHeroPortrait(hero, activeCampaign.gameSettings.system, activeCampaign.gameSettings.tone);
-      const imageUrl = `data:image/jpeg;base64,${imageBytes}`;
-      handleUpdateHero({ ...hero, imageUrl });
-      incrementUsage();
-    } catch (err) {
-      const errorMessage = err.message || 'Failed to generate portrait.';
-      setError(errorMessage);
-      console.error(err);
-      throw err;
-    }
-  }, [activeCampaign, handleUpdateHero, canGenerate, t, isAnonymousMode]);
 
   const handleLoadAppState = useCallback((loadedState) => {
     setError(null);
@@ -297,6 +354,7 @@ const AppContent = () => {
         name: t('newCampaign'),
         storyData: null,
         heroes: [],
+        monsters: [],
         gameSettings: { system: 'Fabula Ultima', tone: 'High Fantasy' },
         lastModified: Date.now()
     };
@@ -320,6 +378,7 @@ const AppContent = () => {
       id: newCampaignId,
       lastModified: Date.now(),
       heroes: exampleCampaignData.heroes.map(h => ({ ...h, id: crypto.randomUUID() })),
+      monsters: exampleCampaignData.monsters.map(m => ({ ...m, id: crypto.randomUUID() })),
     };
     
     setAppState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign] }));
@@ -348,13 +407,21 @@ const AppContent = () => {
       }
       if (activeCampaign) {
           return React.createElement('div', { className: "animate-fade-in" },
+              React.createElement('div', { className: "w-full max-w-4xl mx-auto text-center mt-8" },
+                  React.createElement(CampaignNameEditor, { campaign: activeCampaign, onUpdate: handleUpdateCampaign })
+              ),
               React.createElement(HeroManager, {
                   heroes: activeCampaign.heroes,
                   onAddHero: handleAddHero,
                   onUpdateHero: handleUpdateHero,
                   onRemoveHero: handleRemoveHero,
-                  onGeneratePortrait: handleGeneratePortrait,
                   gameSystem: activeCampaign.gameSettings.system
+              }),
+              React.createElement(MonsterManager, {
+                  monsters: activeCampaign.monsters || [],
+                  onAddMonster: handleAddMonster,
+                  onUpdateMonster: handleUpdateMonster,
+                  onRemoveMonster: handleRemoveMonster,
               }),
               !activeCampaign.storyData && !isLoading && React.createElement(PromptInput, {
                   onGenerate: handleGenerate,

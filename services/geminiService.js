@@ -1,4 +1,6 @@
 
+
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 if (!process.env.API_KEY) {
@@ -90,12 +92,12 @@ const fileToBase64 = (file) => {
 export const generateStory = async (
     prompt,
     heroes,
+    monsters,
     language,
     imageFile,
     gameSystem = 'Fabula Ultima',
     campaignTone = 'High Fantasy',
-    continuationDetails,
-    audioFile
+    continuationDetails
 ) => {
   const model = 'gemini-2.5-flash';
   const languageInstruction = language === 'it' ? 'Italian' : 'English';
@@ -124,9 +126,6 @@ export const generateStory = async (
       const { previousStory, details } = continuationDetails;
       
       let heroActionsPrompt = `- Hero Actions: ${details.heroActions}`;
-      if (audioFile) {
-        heroActionsPrompt = `- Hero Actions: The players' actions are described in the attached audio file. Please listen to it, summarize the key actions, and use that summary to generate the next scene.`;
-      }
 
       fullPrompt = `
       PREVIOUS SCENE SUMMARY:
@@ -147,8 +146,29 @@ export const generateStory = async (
   }
 
   if (heroes.length > 0) {
-      const heroDetails = heroes.map(h => `- ${h.name} (${h.gender} ${h.race} ${h.class}, Age: ${h.age})\n  - Appearance: ${h.appearance}\n  - Background: ${h.background}\n  - Status: ${h.status}`).join('\n\n');
+      const heroDetails = heroes.map(h => {
+        const statsString = (h.stats && h.stats.length > 0)
+            ? `\n  - Attributes:\n` + h.stats.map(s => `    - ${s.key}: ${s.value}`).join('\n')
+            : '';
+        const inventoryString = (h.inventory && h.inventory.length > 0)
+            ? `\n  - Inventory:\n` + h.inventory.map(item => `    - ${item.name} (Qty: ${item.quantity})${item.weight ? ` [Weight: ${item.weight} each]` : ''}`).join('\n')
+            : '';
+        return `- ${h.name} (${h.gender} ${h.race} ${h.class}, Age: ${h.age})\n  - Appearance: ${h.appearance}\n  - Background: ${h.background}\n  - Status: ${h.status}` + statsString + inventoryString;
+      }).join('\n\n');
       fullPrompt += `\n\nCONTEXT ON THE CURRENT PARTY OF HEROES:\n${heroDetails}`;
+  }
+
+  if (monsters && monsters.length > 0) {
+      const monsterDetails = monsters.map(m => {
+        const attributesString = (m.attributes && m.attributes.length > 0)
+            ? `\n  - Attributes:\n` + m.attributes.map(s => `    - ${s.key}: ${s.value}`).join('\n')
+            : '';
+        const inventoryString = (m.inventory && m.inventory.length > 0)
+            ? `\n  - Loot/Items:\n` + m.inventory.map(item => `    - ${item.name} (Qty: ${item.quantity})`).join('\n')
+            : '';
+        return `- ${m.name}` + attributesString + inventoryString;
+      }).join('\n\n');
+      fullPrompt += `\n\nCONTEXT ON POTENTIAL MONSTERS IN THIS CAMPAIGN:\n${monsterDetails}`;
   }
 
   const textPart = { text: fullPrompt };
@@ -163,15 +183,6 @@ export const generateStory = async (
     requestParts.unshift(imagePart);
   }
 
-  if (audioFile) {
-    const { mimeType, data } = await fileToBase64(audioFile);
-    if (!mimeType.startsWith('audio/')) {
-        throw new Error("Invalid file type. Please upload an audio file.");
-    }
-    const audioPart = { inlineData: { mimeType, data } };
-    requestParts.push(audioPart);
-  }
-  
   const contents = { parts: requestParts };
 
   const response = await ai.models.generateContent({
@@ -192,36 +203,4 @@ export const generateStory = async (
     console.error("Failed to parse JSON response:", response.text);
     throw new Error("The AI returned an invalid response. Please try again.");
   }
-};
-
-
-export const generateHeroPortrait = async (
-    hero,
-    gameSystem,
-    campaignTone
-) => {
-    const prompt = `A high-quality fantasy art portrait of a character for a '${gameSystem}' campaign with a '${campaignTone}' tone.
-The character's details are:
-- Gender: ${hero.gender}.
-- Age: ${hero.age}.
-- Race: ${hero.race}.
-- Class: ${hero.class}.
-- Appearance: ${hero.appearance}.
-The final image must be purely visual and must not contain any text, letters, numbers, or watermarks. Focus on a clean portrait of the character's face and upper body, in a style suitable for a TTRPG character sheet.`;
-
-    const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002',
-        prompt,
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: '3:4',
-        },
-    });
-
-    if (response.generatedImages && response.generatedImages.length > 0) {
-        return response.generatedImages[0].image.imageBytes;
-    } else {
-        throw new Error("Image generation failed to return an image.");
-    }
 };

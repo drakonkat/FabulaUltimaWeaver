@@ -1,8 +1,6 @@
 {
   "name": "Adventure Weaver",
   "description": "An AI-powered assistant for Game Masters of any tabletop RPG. Generate detailed story hooks, NPCs, and scenarios with text and image prompts, receiving structured, game-ready content.",
-  "requestFramePermissions": [
-    "microphone"
-  ],
+  "requestFramePermissions": [],
   "prompt": ""
 }

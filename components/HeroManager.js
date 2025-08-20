@@ -1,6 +1,7 @@
 
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
 
@@ -14,19 +15,15 @@ const PencilIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/
     React.createElement('path', { d: "M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" }),
     React.createElement('path', { fillRule: "evenodd", d: "M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z", clipRule: "evenodd" })
 );
-const SparklesIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" },
-    React.createElement('path', { fillRule: "evenodd", d: "M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 2a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1V5a1 1 0 011-1zm6 6a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1v-1a1 1 0 011-1zM6 13a1 1 0 011 1v1h1a1 1 0 010 2H7v1a1 1 0 01-2 0v-1H4a1 1 0 010-2h1v-1a1 1 0 011-1z", clipRule: "evenodd" })
-);
-const MiniSpinner = ({ className = "h-8 w-8 text-white" }) => React.createElement('svg', { className: `animate-spin ${className}`, xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24" },
-    React.createElement('circle', { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
-    React.createElement('path', { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
+const PlusIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-1", viewBox: "0 0 20 20", fill: "currentColor" },
+    React.createElement('path', { fillRule: "evenodd", d: "M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z", clipRule: "evenodd" })
 );
 
-const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGeneratePortrait, gameSystem }) => {
+
+const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem }) => {
     const { t } = useTranslation();
     const [isFormVisible, setIsFormVisible] = useState(false);
     const [editingHero, setEditingHero] = useState(null);
-    const [generatingPortraitFor, setGeneratingPortraitFor] = useState(null);
     
     // Form State
     const [name, setName] = useState('');
@@ -37,7 +34,18 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
     const [appearance, setAppearance] = useState('');
     const [background, setBackground] = useState('');
     const [status, setStatus] = useState('Healthy');
-    const [stats, setStats] = useState({});
+    const [stats, setStats] = useState([]);
+    const [inventory, setInventory] = useState([]);
+
+    const resetForm = () => {
+        setName(''); setGender(''); setAge(''); setRace(''); setHeroClass('');
+        setAppearance(''); setBackground(''); setStatus('Healthy');
+        setStats([
+            { id: crypto.randomUUID(), key: t('maxHP'), value: '10' },
+            { id: crypto.randomUUID(), key: t('currentHP'), value: '10' },
+        ]);
+        setInventory([]);
+    };
 
     useEffect(() => {
         if (editingHero) {
@@ -49,18 +57,26 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
             setAppearance(editingHero.appearance);
             setBackground(editingHero.background);
             setStatus(editingHero.status);
-            setStats(editingHero.stats || {});
+
+            let initialStats = [];
+            if (Array.isArray(editingHero.stats)) {
+                initialStats = editingHero.stats;
+            } else if (typeof editingHero.stats === 'object' && editingHero.stats !== null) {
+                initialStats = Object.entries(editingHero.stats).map(([key, value]) => ({ key, value: String(value) }));
+            }
+            setStats(initialStats.map(s => ({ ...s, id: crypto.randomUUID() })));
+            
+            let initialInventory = [];
+            if (Array.isArray(editingHero.inventory)) {
+                initialInventory = editingHero.inventory;
+            }
+            setInventory(initialInventory.map(item => ({...item, id: crypto.randomUUID() })));
+
             setIsFormVisible(true);
         } else {
             resetForm();
         }
-    }, [editingHero]);
-
-    const resetForm = () => {
-        setName(''); setGender(''); setAge(''); setRace(''); setHeroClass('');
-        setAppearance(''); setBackground(''); setStatus('Healthy');
-        setStats({});
-    };
+    }, [editingHero, t]);
 
     const handleOpenFormForAdd = () => {
         setEditingHero(null);
@@ -79,37 +95,59 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
 
         const template = heroTemplates.find(t => t.name === templateName);
         if (template) {
-            const systemStats = gameSystem === 'D&D' ? template.stats.dd : template.stats.fu;
+            const systemStatsObj = gameSystem === 'D&D' ? template.stats.dd : template.stats.fu;
+            const statsArray = Object.entries(systemStatsObj).map(([key, value]) => ({ key, value: String(value) }));
+            const defaultHP = [
+                { key: t('maxHP'), value: '10' },
+                { key: t('currentHP'), value: '10' },
+            ];
+            
             const { stats, ...restOfTemplate } = template;
-            onAddHero({ ...restOfTemplate, status: 'Healthy', stats: systemStats });
+            onAddHero({ ...restOfTemplate, status: 'Healthy', inventory: [], stats: [...defaultHP, ...statsArray] });
         }
         e.target.value = ''; // Reset select
     };
 
-    const handleGeneratePortraitClick = async (heroId) => {
-        setGeneratingPortraitFor(heroId);
-        try {
-            await onGeneratePortrait(heroId);
-        } catch (error) {
-            // Error is handled in App.js, but we can stop loading here
-            console.error("Portrait generation failed for hero:", heroId);
-        } finally {
-            setGeneratingPortraitFor(null);
-        }
+    const handleAddAttribute = () => {
+        setStats(prev => [...prev, { id: crypto.randomUUID(), key: '', value: '' }]);
+    };
+    const handleRemoveAttribute = (id) => {
+        setStats(prev => prev.filter(stat => stat.id !== id));
+    };
+    const handleStatChange = (id, field, value) => {
+        setStats(currentStats =>
+            currentStats.map(stat =>
+                stat.id === id ? { ...stat, [field]: value } : stat
+            )
+        );
     };
     
-    const handleStatChange = (statName, value) => {
-        const isDd = gameSystem === 'D&D';
-        setStats(prevStats => ({
-            ...prevStats,
-            [statName]: isDd ? (value ? parseInt(value, 10) : 0) : value,
-        }));
+    const handleAddItem = () => {
+        setInventory(prev => [...prev, { id: crypto.randomUUID(), name: '', quantity: '1', weight: '' }]);
+    };
+    const handleRemoveItem = (id) => {
+        setInventory(prev => prev.filter(item => item.id !== id));
+    };
+    const handleItemChange = (id, field, value) => {
+        setInventory(currentInventory =>
+            currentInventory.map(item =>
+                item.id === id ? { ...item, [field]: value } : item
+            )
+        );
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (name.trim() && background.trim() && status.trim()) {
-            const heroData = { name, gender, age, race, class: heroClass, appearance, background, status, stats };
+            const finalStats = stats
+                .filter(s => s.key.trim() !== '')
+                .map(({ id, ...rest }) => rest);
+
+            const finalInventory = inventory
+                .filter(i => i.name.trim() !== '')
+                .map(({ id, ...rest }) => rest);
+
+            const heroData = { name, gender, age, race, class: heroClass, appearance, background, status, stats: finalStats, inventory: finalInventory };
             if (editingHero) {
                 onUpdateHero({ ...editingHero, ...heroData });
             } else {
@@ -120,32 +158,13 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
         }
     };
     
-    const StatInput = ({ statKey, placeholder }) => React.createElement('div', null,
-        React.createElement('label', { htmlFor: `stat-${statKey}`, className:"block text-sm font-medium text-[var(--text-secondary)] mb-1" }, t(statKey)),
-        React.createElement('input', {
-            id: `stat-${statKey}`,
-            type: "number",
-            placeholder: placeholder,
-            value: stats[statKey] || '',
-            onChange: e => handleStatChange(statKey, e.target.value),
-            className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]"
-        })
-    );
-
-    const StatSelect = ({ statKey }) => React.createElement('div', null,
-        React.createElement('label', { htmlFor: `stat-${statKey}`, className:"block text-sm font-medium text-[var(--text-secondary)] mb-1" }, t(statKey)),
-        React.createElement('select', {
-            id: `stat-${statKey}`,
-            value: stats[statKey] || 'd6',
-            onChange: e => handleStatChange(statKey, e.target.value),
-            className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]"
-        },
-            React.createElement('option', { value: "d6" }, "d6"),
-            React.createElement('option', { value: "d8" }, "d8"),
-            React.createElement('option', { value: "d10" }, "d10"),
-            React.createElement('option', { value: "d12" }, "d12")
-        )
-    );
+    const formTotalWeight = useMemo(() => {
+        return inventory.reduce((total, item) => {
+            const weight = parseFloat(item.weight) || 0;
+            const quantity = parseInt(item.quantity, 10) || 0;
+            return total + (weight * quantity);
+        }, 0).toFixed(2);
+    }, [inventory]);
 
     const form = React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
         React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingHero ? t('editHeroTitle') : t('addHeroTitle')),
@@ -159,22 +178,40 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
         ),
         React.createElement('textarea', { placeholder: t('heroAppearancePlaceholder'), value: appearance, onChange: e => setAppearance(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-20 resize-none" }),
         React.createElement('textarea', { placeholder: t('backgroundPlaceholder'), value: background, onChange: e => setBackground(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-24 resize-none", required: true }),
-        React.createElement('div', { className: "border-t border-[var(--border-primary)] my-2" }),
-        React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('attributes')),
-        React.createElement('div', { className: `grid grid-cols-2 md:grid-cols-${gameSystem === 'D&D' ? 3 : 4} gap-4 mt-2` },
-            gameSystem === 'D&D' && React.createElement(React.Fragment, null,
-                React.createElement(StatInput, { statKey: 'str', placeholder: t('strPlaceholder') }),
-                React.createElement(StatInput, { statKey: 'dex', placeholder: t('dexPlaceholder') }),
-                React.createElement(StatInput, { statKey: 'con', placeholder: t('conPlaceholder') }),
-                React.createElement(StatInput, { statKey: 'int', placeholder: t('intPlaceholder') }),
-                React.createElement(StatInput, { statKey: 'wis', placeholder: t('wisPlaceholder') }),
-                React.createElement(StatInput, { statKey: 'cha', placeholder: t('chaPlaceholder') })
+        React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
+            React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('attributes')),
+                React.createElement('button', { type: "button", onClick: handleAddAttribute, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors" },
+                    React.createElement(PlusIcon, null),
+                    t('addAttribute')
+                )
             ),
-            gameSystem === 'Fabula Ultima' && React.createElement(React.Fragment, null,
-                React.createElement(StatSelect, { statKey: 'dex' }),
-                React.createElement(StatSelect, { statKey: 'ins' }),
-                React.createElement(StatSelect, { statKey: 'mig' }),
-                React.createElement(StatSelect, { statKey: 'wlp' })
+            React.createElement('div', { className: "space-y-2 max-h-48 overflow-y-auto pr-2" },
+                stats.map(stat => React.createElement('div', { key: stat.id, className: "grid grid-cols-[1fr_1fr_auto] items-center gap-2" },
+                    React.createElement('input', { type: "text", placeholder: t('attributeNamePlaceholder'), value: stat.key, onChange: e => handleStatChange(stat.id, 'key', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] text-sm" }),
+                    React.createElement('input', { type: "text", placeholder: t('attributeValuePlaceholder'), value: stat.value, onChange: e => handleStatChange(stat.id, 'value', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] text-sm" }),
+                    React.createElement('button', { type: "button", onClick: () => handleRemoveAttribute(stat.id), 'aria-label': "Remove Attribute", className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors" }, React.createElement(TrashIcon, null))
+                ))
+            )
+        ),
+        React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
+            React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('inventory')),
+                React.createElement('div', { className: 'flex items-center gap-4' },
+                    React.createElement('span', { className: 'text-sm text-[var(--text-muted)]' }, `${t('totalWeight')}: ${formTotalWeight}`),
+                    React.createElement('button', { type: "button", onClick: handleAddItem, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors" },
+                        React.createElement(PlusIcon, null),
+                        t('addItem')
+                    )
+                )
+            ),
+            React.createElement('div', { className: "space-y-2 max-h-48 overflow-y-auto pr-2" },
+                inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-[1fr_80px_100px_auto] items-center gap-2" },
+                    React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: item.name, onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] text-sm" }),
+                    React.createElement('input', { type: "text", placeholder: t('quantityPlaceholder'), value: item.quantity, onChange: e => handleItemChange(item.id, 'quantity', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] text-sm" }),
+                    React.createElement('input', { type: "text", placeholder: t('weightPlaceholder'), value: item.weight, onChange: e => handleItemChange(item.id, 'weight', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] text-sm" }),
+                    React.createElement('button', { type: "button", onClick: () => handleRemoveItem(item.id), 'aria-label': "Remove Item", className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors" }, React.createElement(TrashIcon, null))
+                ))
             )
         ),
         React.createElement('div', { className: "flex justify-end gap-4 mt-4" },
@@ -183,34 +220,17 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
         )
     );
 
-    const heroList = heroes.length === 0 ?
-        React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t('noHeroes')) :
-        heroes.map(hero => React.createElement('div', { key: hero.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex flex-col md:flex-row items-start gap-4" },
-            React.createElement('div', { className: "w-full md:w-40 flex-shrink-0" },
-                hero.imageUrl ?
-                    React.createElement(React.Fragment, null,
-                        React.createElement('div', { className: "aspect-[3/4] w-full bg-[var(--bg-secondary)] rounded flex items-center justify-center relative overflow-hidden" },
-                            generatingPortraitFor === hero.id && React.createElement('div', { className: "absolute inset-0 bg-black/50 flex items-center justify-center z-10" }, React.createElement(MiniSpinner, null)),
-                            React.createElement('img', { src: hero.imageUrl, alt: `Portrait of ${hero.name}`, className: "w-full h-full object-cover" })
-                        ),
-                        generatingPortraitFor !== hero.id &&
-                            React.createElement('button', {
-                                onClick: () => handleGeneratePortraitClick(hero.id),
-                                className: "mt-2 w-full flex items-center justify-center px-3 py-1 text-xs rounded-lg bg-teal-700/80 hover:bg-teal-700 text-white transition-colors duration-300"
-                            }, React.createElement(SparklesIcon, null), " ", t('regeneratePortrait'))
-                    ) :
-                    React.createElement('div', { className: "w-full h-full flex items-center justify-center" },
-                        React.createElement('button', {
-                            onClick: () => handleGeneratePortraitClick(hero.id),
-                            disabled: generatingPortraitFor === hero.id,
-                            className: "w-full flex items-center justify-center px-3 py-2 text-sm rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors duration-300 disabled:bg-gray-500 disabled:cursor-wait"
-                        },
-                            generatingPortraitFor === hero.id ?
-                                React.createElement(MiniSpinner, { className: "h-5 w-5 text-white" }) :
-                                React.createElement(React.Fragment, null, React.createElement(SparklesIcon, null), " ", t('generatePortrait'))
-                        )
-                    )
-            ),
+    const HeroCard = ({ hero }) => {
+        const totalWeight = useMemo(() => {
+            if (!hero.inventory) return '0.00';
+            return hero.inventory.reduce((total, item) => {
+                const weight = parseFloat(item.weight) || 0;
+                const quantity = parseInt(item.quantity, 10) || 0;
+                return total + (weight * quantity);
+            }, 0).toFixed(2);
+        }, [hero.inventory]);
+
+        return React.createElement('div', { className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex flex-col md:flex-row items-start gap-4" },
             React.createElement('div', { className: "flex-grow" },
                 React.createElement('div', { className: "flex justify-between items-start" },
                     React.createElement('div', null,
@@ -224,19 +244,28 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, onGenerate
                     )
                 ),
                 React.createElement('div', { className: "flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-[var(--text-secondary)]" },
-                    hero.stats && gameSystem === 'D&D' && ['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat =>
-                        React.createElement('span', { key: stat }, React.createElement('b', null, `${t(stat)}:`), ` ${hero.stats[stat] || 10}`)
-                    ),
-                    hero.stats && gameSystem === 'Fabula Ultima' && ['dex', 'ins', 'mig', 'wlp'].map(stat =>
-                        React.createElement('span', { key: stat }, React.createElement('b', null, `${t(stat)}:`), ` ${hero.stats[stat] || 'd6'}`)
+                    hero.stats && hero.stats.map(stat =>
+                        React.createElement('span', { key: stat.key }, React.createElement('b', null, `${stat.key}:`), ` ${stat.value}`)
                     )
+                ),
+                hero.inventory && hero.inventory.length > 0 && React.createElement('div', { className: "mt-3 border-t border-[var(--border-secondary)] pt-3" },
+                    React.createElement('h4', { className: 'font-semibold text-sm text-[var(--text-secondary)]' }, t('inventory')),
+                    React.createElement('ul', { className: 'list-disc list-inside text-sm text-[var(--text-muted)]' },
+                        hero.inventory.map((item, index) => React.createElement('li', { key: index }, `${item.name} (x${item.quantity})`))
+                    ),
+                    React.createElement('p', { className: 'text-sm font-bold text-[var(--text-secondary)] mt-1' }, `${t('totalWeight')}: ${totalWeight}`)
                 ),
                 React.createElement('div', { className: "mt-3 border-t border-[var(--border-secondary)] pt-3" },
                     React.createElement('p', { className: "text-[var(--text-secondary)]" }, React.createElement('span', { className: "font-semibold" }, `${t('appearance')}:`), ` ${hero.appearance}`),
                     React.createElement('p', { className: "text-[var(--text-muted)] mt-2 whitespace-pre-wrap" }, hero.background)
                 )
             )
-        ));
+        );
+    };
+
+    const heroList = heroes.length === 0 ?
+        React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t('noHeroes')) :
+        heroes.map(hero => React.createElement(HeroCard, { key: hero.id, hero: hero }));
 
     return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
         React.createElement('div', { className: "flex flex-wrap gap-4 justify-between items-center mb-4" },
