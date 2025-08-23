@@ -18,6 +18,8 @@ import { LanguageProvider, useTranslation } from './hooks/useTranslation.js';
 import { ThemeContext } from './hooks/useTheme.js';
 import { MAX_CAMPAIGNS, MAX_DAILY_PROMPTS, GOOGLE_CLIENT_ID } from './config.js';
 import { exampleCampaignData } from './data/exampleCampaign.js';
+import BottomNavBar from './components/BottomNavBar.js';
+import ModeSwitcher from './components/ModeSwitcher.js';
 
 // START: Confirmation Modal
 const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
@@ -48,6 +50,35 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
     );
 };
 // END: Confirmation Modal
+
+// START: Backup Modal
+const BackupModal = ({ isOpen, onClose, appState, onLoad }) => {
+    if (!isOpen) return null;
+
+    return React.createElement('div', {
+        className: "fixed inset-0 bg-black/70 z-[100] flex items-center justify-center animate-fade-in",
+        'aria-modal': true,
+        role: "dialog",
+        onClick: onClose
+    },
+        React.createElement('div', {
+            className: "relative bg-[var(--bg-secondary)] rounded-lg shadow-xl w-full max-w-2xl m-4 border-2 border-[var(--border-accent)]",
+            onClick: e => e.stopPropagation()
+        },
+            React.createElement('button', {
+                onClick: onClose,
+                className: "absolute top-3 right-3 p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full hover:bg-[var(--bg-tertiary)] transition-colors",
+                'aria-label': "Close"
+            },
+                React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" },
+                    React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M6 18L18 6M6 6l12 12" })
+                )
+            ),
+            React.createElement(BackupManager, { appState, onLoad })
+        )
+    );
+};
+// END: Backup Modal
 
 // START: Dice Roller Components
 const DieResultIcon = () => React.createElement('svg', {
@@ -124,7 +155,7 @@ const DiceRoller = () => {
         }
     };
     
-    return React.createElement('div', { ref: node, className: "fixed bottom-6 right-6 z-50 flex flex-col items-end" },
+    return React.createElement('div', { ref: node, className: "fixed bottom-20 md:bottom-6 right-6 z-50 flex flex-col items-end" },
         isOpen && React.createElement('div', { className: "flex flex-col items-end gap-2 mb-2 animate-fade-in-up" },
             diceTypes.slice().reverse().map(sides => 
                 React.createElement('div', { key: sides, className: "flex items-center justify-end gap-3" },
@@ -460,6 +491,7 @@ const AppContent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { language, t } = useTranslation();
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   
   const [theme, setThemeState] = useState(() => {
     try {
@@ -759,6 +791,7 @@ const AppContent = () => {
         setAppState(restOfState);
         setActiveCampaignId(null);
         setActivePlayerGameId(null);
+        setIsBackupModalOpen(false); // Close modal on successful load
     } else {
         setError(t('errorInvalidData'));
     }
@@ -856,19 +889,6 @@ const AppContent = () => {
   if (!isAnonymousMode && !user) {
     return React.createElement(LoginScreen, null);
   }
-  
-  const ModeSwitcher = ({ mode, onModeChange }) => {
-      return React.createElement('div', { className: "p-1 bg-[var(--bg-secondary)] rounded-lg flex text-sm shadow-md border border-[var(--border-secondary)]" },
-          React.createElement('button', {
-              onClick: () => onModeChange('gm'),
-              className: `px-3 py-1 rounded-md transition-colors font-medium ${mode === 'gm' ? 'bg-[var(--accent-secondary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`
-          }, t('gmMode')),
-          React.createElement('button', {
-              onClick: () => onModeChange('player'),
-              className: `px-3 py-1 rounded-md transition-colors font-medium ${mode === 'player' ? 'bg-[var(--accent-secondary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`
-          }, t('playerMode'))
-      );
-  };
 
   const renderActiveCampaign = () => {
       if (isLoading && !activeCampaign?.storyData) return React.createElement(LoadingSpinner, null);
@@ -894,14 +914,12 @@ const AppContent = () => {
       if (appMode === 'gm') {
           return !activeCampaignId ? 
             React.createElement('div', { className: "animate-fade-in" },
-                React.createElement(CampaignList, { campaigns: appState.campaigns, onSelect: setActiveCampaignId, onDelete: handleDeleteCampaign, onNew: handleNewCampaign, canCreate: canCreateCampaign, onLoadExample: handleLoadExampleCampaign }),
-                React.createElement(BackupManager, { appState: { ...appState, theme }, onLoad: handleLoadAppState })
+                React.createElement(CampaignList, { campaigns: appState.campaigns, onSelect: setActiveCampaignId, onDelete: handleDeleteCampaign, onNew: handleNewCampaign, canCreate: canCreateCampaign, onLoadExample: handleLoadExampleCampaign })
             ) : renderActiveCampaign();
       } else { // Player Mode
           return !activePlayerGameId ?
             React.createElement('div', { className: "animate-fade-in" },
-                React.createElement(PlayerGameList, { games: appState.playerGames || [], onSelect: setActivePlayerGameId, onDelete: handleDeletePlayerGame, onNew: handleNewPlayerGame, canCreate: canCreatePlayerGame }),
-                 React.createElement(BackupManager, { appState: { ...appState, theme }, onLoad: handleLoadAppState })
+                React.createElement(PlayerGameList, { games: appState.playerGames || [], onSelect: setActivePlayerGameId, onDelete: handleDeletePlayerGame, onNew: handleNewPlayerGame, canCreate: canCreatePlayerGame })
             ) :
             (activePlayerGame && React.createElement(PlayerDashboard, { game: activePlayerGame, onUpdate: handleUpdatePlayerGame, onRewrite: handleRewrite, onGenerateBackground: handleGenerateBackground, openConfirmModal: openConfirmModal }));
       }
@@ -920,10 +938,11 @@ const AppContent = () => {
           onBack: () => appMode === 'gm' ? setActiveCampaignId(null) : setActivePlayerGameId(null),
           showBack: !!activeCampaignId || !!activePlayerGameId, 
           user: isAnonymousMode ? null : user, 
-          onSignOut: handleSignOut
+          onSignOut: handleSignOut,
+          onOpenBackupModal: () => setIsBackupModalOpen(true)
       }),
       !(!!activeCampaignId || !!activePlayerGameId) && React.createElement('div', {
-            className: "container mx-auto flex justify-center py-4 animate-fade-in"
+            className: "hidden md:flex container mx-auto justify-center py-4 animate-fade-in"
         },
           React.createElement(ModeSwitcher, {
               mode: appMode,
@@ -934,7 +953,7 @@ const AppContent = () => {
               }
           })
       ),
-      React.createElement('main', { className: "container mx-auto px-4 pb-16 flex-grow" },
+      React.createElement('main', { className: "container mx-auto px-4 pb-24 flex-grow" },
           error && React.createElement('div', {
               className: "w-full max-w-4xl mx-auto my-4 p-4 bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger-text)] rounded-lg text-center",
               onClick: () => setError(null),
@@ -953,6 +972,26 @@ const AppContent = () => {
         onConfirm: handleConfirm,
         title: modalState.title,
         message: modalState.message,
+      }),
+       React.createElement(BackupModal, {
+        isOpen: isBackupModalOpen,
+        onClose: () => setIsBackupModalOpen(false),
+        appState: { ...appState, theme },
+        onLoad: handleLoadAppState
+      }),
+      React.createElement(BottomNavBar, {
+          onBack: () => appMode === 'gm' ? setActiveCampaignId(null) : setActivePlayerGameId(null),
+          showBack: !!activeCampaignId || !!activePlayerGameId,
+          user: isAnonymousMode ? null : user,
+          onSignOut: handleSignOut,
+          mode: appMode,
+          onModeChange: (mode) => {
+              setAppMode(mode);
+              setActiveCampaignId(null);
+              setActivePlayerGameId(null);
+          },
+          showModeSwitcher: !(!!activeCampaignId || !!activePlayerGameId),
+          onOpenBackupModal: () => setIsBackupModalOpen(true)
       }),
       React.createElement('style', {
           dangerouslySetInnerHTML: {

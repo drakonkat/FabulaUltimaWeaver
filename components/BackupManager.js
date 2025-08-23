@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 
@@ -85,7 +86,7 @@ const BackupManager = ({ appState, onLoad }) => {
         }
     };
 
-    return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-primary)]/50 rounded-xl shadow-2xl border border-[var(--border-secondary)]/50" },
+    return React.createElement('div', { className: "p-6" },
         React.createElement('h3', { className: "text-xl font-bold text-[var(--accent-primary)] mb-4 text-center" }, t('backupAndRestore')),
         React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
             React.createElement('div', { className: "flex flex-col gap-3" },
