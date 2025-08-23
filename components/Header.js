@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import LanguageSwitcher from './LanguageSwitcher.js';
 import ThemeSwitcher from './ThemeSwitcher.js';
@@ -39,7 +40,7 @@ const Header = ({ onBack, showBack, user, onSignOut, onOpenBackupModal }) => {
       React.createElement('div', { className: "flex-1" },
         showBack ? React.createElement('button', { onClick: onBack, className: "flex items-center px-3 py-2 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors duration-300" },
           React.createElement(BackIcon, null),
-          t('backToCampaigns')
+          t('backToList')
         ) : null
       ),
       React.createElement('div', { className: "flex items-center justify-center gap-4 flex-shrink-0" },

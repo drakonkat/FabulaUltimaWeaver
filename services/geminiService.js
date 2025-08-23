@@ -68,6 +68,23 @@ const STORY_GENERATION_SCHEMA = {
   required: ['storyName', 'NPC', 'backgroundStory', 'previousSituation', 'masterToRead'],
 };
 
+const ONE_SHOT_SCHEMAS = {
+    mainStoryArc: {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING, description: "An evocative title for the one-shot adventure." },
+            premise: { type: Type.STRING, description: "A one-sentence summary of the adventure." },
+            hook: { type: Type.STRING, description: "How the players get involved in the story." },
+            objective: { type: Type.STRING, description: "The primary, clear goal for the players." },
+            stakes: { type: Type.STRING, description: "What happens if the players fail their objective." },
+            climax: { type: Type.STRING, description: "The final confrontation or peak event of the story." },
+            resolution: { type: Type.STRING, description: "The potential outcomes and aftermath of the adventure." },
+        },
+        required: ['title', 'premise', 'hook', 'objective', 'stakes', 'climax', 'resolution'],
+    },
+    // Add other schemas here for locations, npcs, etc.
+};
+
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -242,4 +259,42 @@ export const generateCharacterBackground = async (race, heroClass, language) => 
     });
 
     return response.text.trim();
+};
+
+export const generateOneShotContent = async (partToGenerate, oneShotContext, language) => {
+    const model = 'gemini-2.5-flash';
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+    const schema = ONE_SHOT_SCHEMAS[partToGenerate];
+
+    if (!schema) {
+        throw new Error(`Invalid one-shot part to generate: ${partToGenerate}`);
+    }
+
+    const systemInstruction = `You are a creative and expert Game Master for tabletop RPGs. Your task is to generate content for a one-shot adventure. You must adhere strictly to the provided JSON schema and fill all fields with rich, thematic content. Your entire response, including all text in the JSON output, MUST be in ${languageInstruction}.`;
+
+    let prompt = `Generate the '${partToGenerate}' section for a one-shot adventure.`;
+    if (oneShotContext) {
+        prompt += `\n\nCONTEXT FOR THE ONE-SHOT:\n${oneShotContext}`;
+    }
+
+    const contents = { parts: [{ text: prompt }] };
+
+    const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: schema,
+        },
+    });
+
+    try {
+        const jsonText = response.text.trim();
+        const parsedData = JSON.parse(jsonText);
+        return parsedData;
+    } catch (e) {
+        console.error("Failed to parse JSON response for one-shot content:", response.text);
+        throw new Error("The AI returned an invalid response. Please try again.");
+    }
 };

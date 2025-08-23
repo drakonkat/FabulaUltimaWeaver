@@ -1,9 +1,11 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import LanguageSwitcher from './LanguageSwitcher.js';
 import ThemeSwitcher from './ThemeSwitcher.js';
 import { useTranslation } from '../hooks/useTranslation.js';
 import ModeSwitcher from './ModeSwitcher.js';
+import GMViewSwitcher from './GMViewSwitcher.js';
 
 const BackIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", viewBox: "0 0 20 20", fill: "currentColor" },
     React.createElement('path', { fillRule: "evenodd", d: "M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z", clipRule: "evenodd" })
@@ -14,7 +16,7 @@ const SettingsIcon = () => React.createElement('svg', { xmlns: "http://www.w3.or
     React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" })
 );
 
-const BottomNavBar = ({ onBack, showBack, user, onSignOut, mode, onModeChange, showModeSwitcher, onOpenBackupModal }) => {
+const BottomNavBar = ({ onBack, showBack, user, onSignOut, mode, onModeChange, showModeSwitcher, onOpenBackupModal, gmView, onGmViewChange, showGmViewSwitcher }) => {
     const { t } = useTranslation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
@@ -35,9 +37,19 @@ const BottomNavBar = ({ onBack, showBack, user, onSignOut, mode, onModeChange, s
                 React.createElement(BackIcon, null)
             );
         }
+        
+        const switchers = [];
         if (showModeSwitcher) {
-            return React.createElement(ModeSwitcher, { mode, onModeChange });
+            switchers.push(React.createElement(ModeSwitcher, { key: 'mode', mode, onModeChange }));
         }
+        if (showGmViewSwitcher) {
+            switchers.push(React.createElement(GMViewSwitcher, { key: 'gm', view: gmView, onViewChange: onGmViewChange }));
+        }
+
+        if (switchers.length > 0) {
+            return React.createElement('div', { className: 'flex items-center gap-2' }, ...switchers);
+        }
+
         return React.createElement('div', { className: 'w-10 h-10' }); // Placeholder for alignment
     };
     
@@ -48,7 +60,7 @@ const BottomNavBar = ({ onBack, showBack, user, onSignOut, mode, onModeChange, s
             React.createElement('div', { className: 'flex-1 flex justify-start' },
                 React.createElement(LeftContent, null)
             ),
-            React.createElement('div', { className: "text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] tracking-wider", style: { fontFamily: 'serif' } }, "GDR Support"),
+            React.createElement('div', { className: "text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] tracking-wider whitespace-nowrap", style: { fontFamily: 'serif' } }, "GDR Support"),
             React.createElement('div', { className: 'flex-1 flex justify-end relative', ref: menuRef },
                 isMenuOpen && React.createElement('div', {
                     className: "absolute bottom-full right-0 mb-3 p-4 bg-[var(--bg-tertiary)] rounded-lg shadow-xl border border-[var(--border-primary)] flex flex-col gap-4 animate-fade-in-up w-52"

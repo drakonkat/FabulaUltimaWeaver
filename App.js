@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { generateStory, rewriteText, generateCharacterBackground } from './services/geminiService.js';
+import { generateStory, rewriteText, generateCharacterBackground, generateOneShotContent } from './services/geminiService.js';
 import Header from './components/Header.js';
 import PromptInput from './components/PromptInput.js';
 import LoadingSpinner from './components/LoadingSpinner.js';
@@ -11,6 +11,8 @@ import HeroManager from './components/HeroManager.js';
 import MonsterManager from './components/MonsterManager.js';
 import ContinuationInput from './components/ContinuationInput.js';
 import CampaignList from './components/CampaignList.js';
+import OneShotList from './components/OneShotList.js';
+import OneShotDashboard from './components/OneShotDashboard.js';
 import BackupManager from './components/BackupManager.js';
 import LoginScreen from './components/LoginScreen.js';
 import Footer from './components/Footer.js';
@@ -20,6 +22,9 @@ import { MAX_CAMPAIGNS, MAX_DAILY_PROMPTS, GOOGLE_CLIENT_ID } from './config.js'
 import { exampleCampaignData } from './data/exampleCampaign.js';
 import BottomNavBar from './components/BottomNavBar.js';
 import ModeSwitcher from './components/ModeSwitcher.js';
+import GMViewSwitcher from './components/GMViewSwitcher.js';
+import CampaignNameEditor from './components/CampaignNameEditor.js';
+
 
 // START: Confirmation Modal
 const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
@@ -186,70 +191,14 @@ const DiceRoller = () => {
 const getToday = () => new Date().toISOString().split('T')[0];
 
 const defaultState = {
-    version: 5,
+    version: 6,
     campaigns: [],
+    oneShots: [],
     playerGames: [],
     usage: {
         promptsToday: 0,
         lastPromptDate: getToday(),
     },
-};
-
-const CampaignNameEditor = ({ campaign, onUpdate }) => {
-    const { t } = useTranslation();
-    const [name, setName] = useState(campaign.name);
-    const [isEditing, setIsEditing] = useState(false);
-    const inputRef = useRef(null);
-
-    useEffect(() => {
-        setName(campaign.name);
-    }, [campaign.name]);
-
-    useEffect(() => {
-        if (isEditing && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [isEditing]);
-    
-    const handleSave = () => {
-        if (name.trim() && campaign.name !== name.trim()) {
-            onUpdate({ ...campaign, name: name.trim() });
-        } else {
-            setName(campaign.name);
-        }
-        setIsEditing(false);
-    };
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            handleSave();
-        } else if (e.key === 'Escape') {
-            setName(campaign.name);
-            setIsEditing(false);
-        }
-    };
-
-    if (isEditing) {
-        return React.createElement('input', {
-            ref: inputRef,
-            type: 'text',
-            value: name,
-            onChange: e => setName(e.target.value),
-            onBlur: handleSave,
-            onKeyDown: handleKeyDown,
-            className: "text-4xl md:text-5xl font-bold text-center text-[var(--highlight-secondary)] bg-transparent border-b-2 border-[var(--border-accent)] focus:outline-none w-full",
-            style: { fontFamily: 'serif' },
-            'aria-label': "Campaign Name"
-        });
-    }
-
-    return React.createElement('h1', {
-        className: "text-4xl md:text-5xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-b from-[var(--highlight-tertiary)] to-[var(--highlight-primary-from)] cursor-pointer hover:opacity-80 transition-opacity",
-        style: { fontFamily: 'serif' },
-        onClick: () => setIsEditing(true),
-        title: t('editCampaignName')
-    }, campaign.name);
 };
 
 // START: PLAYER MODE COMPONENTS
@@ -486,7 +435,9 @@ const AppContent = () => {
   const [user, setUser] = useState(null);
   const [appState, setAppState] = useState(defaultState);
   const [appMode, setAppMode] = useState('gm');
+  const [gmView, setGmView] = useState('campaigns'); // 'campaigns' or 'one-shots'
   const [activeCampaignId, setActiveCampaignId] = useState(null);
+  const [activeOneShotId, setActiveOneShotId] = useState(null);
   const [activePlayerGameId, setActivePlayerGameId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -548,6 +499,7 @@ const AppContent = () => {
     setUser(null);
     setAppState(defaultState);
     setActiveCampaignId(null);
+    setActiveOneShotId(null);
     setActivePlayerGameId(null);
   };
 
@@ -569,19 +521,14 @@ const AppContent = () => {
 
             if (savedTheme) setTheme(savedTheme);
             
-            if (restOfState.version === 5) {
-                const usage = isAnonymousMode ? restOfState.usage : checkAndResetUsage(restOfState.usage);
-                setAppState({ ...restOfState, usage });
-            } else { // Migration
-                 const migratedState = {
-                     ...defaultState,
-                     campaigns: restOfState.campaigns || [],
-                     playerGames: restOfState.playerGames || [],
-                     usage: restOfState.usage || defaultState.usage,
-                     version: 5,
-                 };
-                 setAppState(migratedState);
-            }
+            const migratedState = {
+                ...defaultState,
+                ...restOfState,
+                version: defaultState.version,
+            };
+
+            const usage = isAnonymousMode ? migratedState.usage : checkAndResetUsage(migratedState.usage);
+            setAppState({ ...migratedState, usage });
         } else {
             setAppState(defaultState);
         }
@@ -611,12 +558,20 @@ const AppContent = () => {
   }, [appState, theme, user, isAnonymousMode]);
 
   const activeCampaign = useMemo(() => appState.campaigns.find(c => c.id === activeCampaignId), [appState.campaigns, activeCampaignId]);
+  const activeOneShot = useMemo(() => (appState.oneShots || []).find(os => os.id === activeOneShotId), [appState.oneShots, activeOneShotId]);
   const activePlayerGame = useMemo(() => appState.playerGames.find(g => g.id === activePlayerGameId), [appState.playerGames, activePlayerGameId]);
 
   const handleUpdateCampaign = (updatedCampaign) => {
     setAppState(prev => ({
         ...prev,
         campaigns: prev.campaigns.map(c => c.id === updatedCampaign.id ? { ...updatedCampaign, lastModified: Date.now() } : c),
+    }));
+  };
+  
+  const handleUpdateOneShot = (updatedOneShot) => {
+    setAppState(prev => ({
+        ...prev,
+        oneShots: (prev.oneShots || []).map(os => os.id === updatedOneShot.id ? { ...updatedOneShot, lastModified: Date.now() } : os),
     }));
   };
   
@@ -638,56 +593,79 @@ const AppContent = () => {
     closeConfirmModal();
   }, [modalState.onConfirm, closeConfirmModal]);
 
-
   const handleAddHero = useCallback((heroData) => {
-    if (!activeCampaign) return;
     const newHero = { ...heroData, id: crypto.randomUUID() };
-    const updatedHeroes = [...activeCampaign.heroes, newHero];
-    handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
-  }, [activeCampaign]);
+    if (activeCampaign) {
+      const updatedHeroes = [...activeCampaign.heroes, newHero];
+      handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
+    } else if (activeOneShot) {
+      const updatedHeroes = [...activeOneShot.heroes, newHero];
+      handleUpdateOneShot({ ...activeOneShot, heroes: updatedHeroes });
+    }
+  }, [activeCampaign, activeOneShot]);
 
   const handleUpdateHero = useCallback((updatedHero) => {
-    if (!activeCampaign) return;
-    const updatedHeroes = activeCampaign.heroes.map(h => h.id === updatedHero.id ? updatedHero : h);
-    handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
-  }, [activeCampaign]);
+    if (activeCampaign) {
+      const updatedHeroes = activeCampaign.heroes.map(h => h.id === updatedHero.id ? updatedHero : h);
+      handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
+    } else if (activeOneShot) {
+      const updatedHeroes = activeOneShot.heroes.map(h => h.id === updatedHero.id ? updatedHero : h);
+      handleUpdateOneShot({ ...activeOneShot, heroes: updatedHeroes });
+    }
+  }, [activeCampaign, activeOneShot]);
 
   const handleRemoveHero = useCallback((id) => {
     openConfirmModal({
         title: t('removeHeroTitle'),
         message: t('removeHeroConfirmation'),
         onConfirm: () => {
-            if (!activeCampaign) return;
-            const updatedHeroes = activeCampaign.heroes.filter(hero => hero.id !== id);
-            handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
+            if (activeCampaign) {
+              const updatedHeroes = activeCampaign.heroes.filter(hero => hero.id !== id);
+              handleUpdateCampaign({ ...activeCampaign, heroes: updatedHeroes });
+            } else if (activeOneShot) {
+              const updatedHeroes = activeOneShot.heroes.filter(hero => hero.id !== id);
+              handleUpdateOneShot({ ...activeOneShot, heroes: updatedHeroes });
+            }
         }
     });
-  }, [activeCampaign, openConfirmModal, t]);
+  }, [activeCampaign, activeOneShot, openConfirmModal, t]);
   
   const handleAddMonster = useCallback((monsterData) => {
-    if (!activeCampaign) return;
     const newMonster = { ...monsterData, id: crypto.randomUUID() };
-    const updatedMonsters = [...(activeCampaign.monsters || []), newMonster];
-    handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
-  }, [activeCampaign]);
+    if (activeCampaign) {
+        const updatedMonsters = [...(activeCampaign.monsters || []), newMonster];
+        handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+    } else if (activeOneShot) {
+        const updatedMonsters = [...(activeOneShot.monsters || []), newMonster];
+        handleUpdateOneShot({ ...activeOneShot, monsters: updatedMonsters });
+    }
+  }, [activeCampaign, activeOneShot]);
 
   const handleUpdateMonster = useCallback((updatedMonster) => {
-    if (!activeCampaign) return;
-    const updatedMonsters = activeCampaign.monsters.map(m => m.id === updatedMonster.id ? updatedMonster : m);
-    handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
-  }, [activeCampaign]);
+    if (activeCampaign) {
+        const updatedMonsters = activeCampaign.monsters.map(m => m.id === updatedMonster.id ? updatedMonster : m);
+        handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+    } else if (activeOneShot) {
+        const updatedMonsters = activeOneShot.monsters.map(m => m.id === updatedMonster.id ? updatedMonster : m);
+        handleUpdateOneShot({ ...activeOneShot, monsters: updatedMonsters });
+    }
+  }, [activeCampaign, activeOneShot]);
 
   const handleRemoveMonster = useCallback((id) => {
     openConfirmModal({
         title: t('removeMonsterTitle'),
         message: t('removeMonsterConfirmation'),
         onConfirm: () => {
-            if (!activeCampaign) return;
-            const updatedMonsters = activeCampaign.monsters.filter(monster => monster.id !== id);
-            handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+            if (activeCampaign) {
+                const updatedMonsters = activeCampaign.monsters.filter(monster => monster.id !== id);
+                handleUpdateCampaign({ ...activeCampaign, monsters: updatedMonsters });
+            } else if (activeOneShot) {
+                const updatedMonsters = activeOneShot.monsters.filter(monster => monster.id !== id);
+                handleUpdateOneShot({ ...activeOneShot, monsters: updatedMonsters });
+            }
         }
     });
-  }, [activeCampaign, openConfirmModal, t]);
+  }, [activeCampaign, activeOneShot, openConfirmModal, t]);
 
   const canGenerate = useMemo(() => {
     if (isAnonymousMode) return true;
@@ -747,6 +725,23 @@ const AppContent = () => {
         setIsLoading(false);
     }
   }, [activeCampaign, language, canGenerate, t, isAnonymousMode]);
+  
+  const handleGenerateOneShotContent = useCallback(async (part, context) => {
+      if (!canGenerate) {
+          setError(t('limitDailyPrompts'));
+          return null;
+      }
+      setError(null);
+      try {
+          const content = await generateOneShotContent(part, context, language);
+          incrementUsage();
+          return content;
+      } catch (err) {
+          setError(err.message || 'An unknown error occurred.');
+          console.error(err);
+          return null;
+      }
+  }, [canGenerate, t, language, isAnonymousMode]);
 
   const handleRewrite = useCallback(async (text) => {
       if (!canGenerate) {
@@ -786,10 +781,11 @@ const AppContent = () => {
     setError(null);
     const { theme: loadedTheme, ...restOfState } = loadedState;
 
-    if ((restOfState.version >= 3) && restOfState.campaigns && restOfState.usage) {
+    if (restOfState.version >= 3 && restOfState.campaigns && restOfState.usage) {
         if (loadedTheme) setTheme(loadedTheme);
-        setAppState(restOfState);
+        setAppState(prev => ({...prev, ...restOfState}));
         setActiveCampaignId(null);
+        setActiveOneShotId(null);
         setActivePlayerGameId(null);
         setIsBackupModalOpen(false); // Close modal on successful load
     } else {
@@ -849,6 +845,50 @@ const AppContent = () => {
     });
   }, [t, activeCampaignId, openConfirmModal]);
 
+  // One-Shot Handlers
+  const canCreateOneShot = useMemo(() => {
+    if (isAnonymousMode) return true;
+    return (appState.oneShots || []).length < MAX_CAMPAIGNS;
+  }, [isAnonymousMode, appState.oneShots]);
+  
+  const handleNewOneShot = () => {
+    if (!canCreateOneShot) {
+        setError(t('limitCampaigns'));
+        return;
+    }
+    const newId = crypto.randomUUID();
+    const newOneShot = {
+        id: newId,
+        title: t('newOneShot'),
+        mainStoryArcs: [{
+            id: crypto.randomUUID(),
+            title: t('newOneShot'),
+            premise: '', hook: '', objective: '', stakes: '', climax: '', resolution: ''
+        }],
+        locations: [],
+        events: [],
+        npcs: [],
+        items: [],
+        heroes: [],
+        monsters: [],
+        lastModified: Date.now()
+    };
+    setAppState(prev => ({ ...prev, oneShots: [...(prev.oneShots || []), newOneShot]}));
+    setActiveOneShotId(newId);
+  };
+  
+  const handleDeleteOneShot = useCallback((id) => {
+    openConfirmModal({
+        title: t('deleteOneShot'),
+        message: t('deleteOneShotConfirmation'),
+        onConfirm: () => {
+            setAppState(prev => ({ ...prev, oneShots: prev.oneShots.filter(os => os.id !== id) }));
+            if (activeOneShotId === id) setActiveOneShotId(null);
+        }
+    });
+  }, [t, activeOneShotId, openConfirmModal]);
+
+
   // Player Game Handlers
   const canCreatePlayerGame = useMemo(() => {
     if (isAnonymousMode) return true;
@@ -889,6 +929,15 @@ const AppContent = () => {
   if (!isAnonymousMode && !user) {
     return React.createElement(LoginScreen, null);
   }
+  
+  const handleBack = () => {
+      if (appMode === 'gm') {
+          setActiveCampaignId(null);
+          setActiveOneShotId(null);
+      } else {
+          setActivePlayerGameId(null);
+      }
+  };
 
   const renderActiveCampaign = () => {
       if (isLoading && !activeCampaign?.storyData) return React.createElement(LoadingSpinner, null);
@@ -912,10 +961,27 @@ const AppContent = () => {
   
   const renderAppContent = () => {
       if (appMode === 'gm') {
-          return !activeCampaignId ? 
-            React.createElement('div', { className: "animate-fade-in" },
-                React.createElement(CampaignList, { campaigns: appState.campaigns, onSelect: setActiveCampaignId, onDelete: handleDeleteCampaign, onNew: handleNewCampaign, canCreate: canCreateCampaign, onLoadExample: handleLoadExampleCampaign })
-            ) : renderActiveCampaign();
+          if (activeCampaignId) return renderActiveCampaign();
+          if (activeOneShotId) return React.createElement(OneShotDashboard, { 
+              oneShot: activeOneShot, 
+              onUpdate: handleUpdateOneShot,
+              onAddHero: handleAddHero, 
+              onUpdateHero: handleUpdateHero, 
+              onRemoveHero: handleRemoveHero,
+              onAddMonster: handleAddMonster, 
+              onUpdateMonster: handleUpdateMonster, 
+              onRemoveMonster: handleRemoveMonster,
+              onGenerate: handleGenerateOneShotContent,
+              onRewrite: handleRewrite,
+              canGenerate
+          });
+
+          return React.createElement('div', { className: "animate-fade-in" },
+            gmView === 'campaigns' ?
+              React.createElement(CampaignList, { campaigns: appState.campaigns, onSelect: setActiveCampaignId, onDelete: handleDeleteCampaign, onNew: handleNewCampaign, canCreate: canCreateCampaign, onLoadExample: handleLoadExampleCampaign })
+              :
+              React.createElement(OneShotList, { oneShots: appState.oneShots || [], onSelect: setActiveOneShotId, onDelete: handleDeleteOneShot, onNew: handleNewOneShot, canCreate: canCreateOneShot })
+          );
       } else { // Player Mode
           return !activePlayerGameId ?
             React.createElement('div', { className: "animate-fade-in" },
@@ -925,6 +991,7 @@ const AppContent = () => {
       }
   };
 
+  const showAnyDetailView = !!activeCampaignId || !!activeOneShotId || !!activePlayerGameId;
 
   return React.createElement(ThemeContext.Provider, { value: { theme, setTheme } },
       React.createElement('div', { 
@@ -935,14 +1002,14 @@ const AppContent = () => {
           }
       },
       React.createElement(Header, { 
-          onBack: () => appMode === 'gm' ? setActiveCampaignId(null) : setActivePlayerGameId(null),
-          showBack: !!activeCampaignId || !!activePlayerGameId, 
+          onBack: handleBack,
+          showBack: showAnyDetailView, 
           user: isAnonymousMode ? null : user, 
           onSignOut: handleSignOut,
           onOpenBackupModal: () => setIsBackupModalOpen(true)
       }),
-      !(!!activeCampaignId || !!activePlayerGameId) && React.createElement('div', {
-            className: "hidden md:flex container mx-auto justify-center py-4 animate-fade-in"
+      !showAnyDetailView && React.createElement('div', {
+            className: "hidden md:flex container mx-auto justify-center py-4 animate-fade-in gap-8"
         },
           React.createElement(ModeSwitcher, {
               mode: appMode,
@@ -951,6 +1018,10 @@ const AppContent = () => {
                   setActiveCampaignId(null);
                   setActivePlayerGameId(null);
               }
+          }),
+          appMode === 'gm' && React.createElement(GMViewSwitcher, {
+              view: gmView,
+              onViewChange: setGmView
           })
       ),
       React.createElement('main', { className: "container mx-auto px-4 pb-24 flex-grow" },
@@ -980,8 +1051,8 @@ const AppContent = () => {
         onLoad: handleLoadAppState
       }),
       React.createElement(BottomNavBar, {
-          onBack: () => appMode === 'gm' ? setActiveCampaignId(null) : setActivePlayerGameId(null),
-          showBack: !!activeCampaignId || !!activePlayerGameId,
+          onBack: handleBack,
+          showBack: showAnyDetailView,
           user: isAnonymousMode ? null : user,
           onSignOut: handleSignOut,
           mode: appMode,
@@ -990,7 +1061,10 @@ const AppContent = () => {
               setActiveCampaignId(null);
               setActivePlayerGameId(null);
           },
-          showModeSwitcher: !(!!activeCampaignId || !!activePlayerGameId),
+          showModeSwitcher: !showAnyDetailView,
+          gmView: gmView,
+          onGmViewChange: setGmView,
+          showGmViewSwitcher: !showAnyDetailView && appMode === 'gm',
           onOpenBackupModal: () => setIsBackupModalOpen(true)
       }),
       React.createElement('style', {
