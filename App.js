@@ -24,6 +24,7 @@ import BottomNavBar from './components/BottomNavBar.js';
 import ModeSwitcher from './components/ModeSwitcher.js';
 import GMViewSwitcher from './components/GMViewSwitcher.js';
 import CampaignNameEditor from './components/CampaignNameEditor.js';
+import BattleMapManager from './components/BattleMapManager.js';
 
 
 // START: Confirmation Modal
@@ -84,6 +85,14 @@ const BackupModal = ({ isOpen, onClose, appState, onLoad }) => {
     );
 };
 // END: Backup Modal
+
+const BattleMapIcon = ({ isOpen }) => React.createElement('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    className: `h-8 w-8 transition-transform duration-300 text-white ${isOpen ? 'rotate-90' : ''}`,
+    viewBox: "0 0 24 24",
+    fill: "currentColor"
+}, React.createElement('path', { d: "M18.6 3.4c-1.2-1.2-3.1-1.2-4.2 0L3.4 14.4c-1.2 1.2-1.2 3.1 0 4.2c.6.6 1.4 1 2.1 1s1.5-.4 2.1-1l11-11c1.2-1.2 1.2-3.1 0-4.2zm-2.8 1.4c.4-.4 1-.4 1.4 0c.4.4.4 1 0 1.4l-1.4 1.4l-1.4-1.4l1.4-1.4zm-10 10c-.4.4-.4 1 0 1.4c.4.4 1 .4 1.4 0l1.4-1.4l-1.4-1.4l-1.4 1.4z" }));
+
 
 // START: Dice Roller Components
 const DieResultIcon = () => React.createElement('svg', {
@@ -191,10 +200,11 @@ const DiceRoller = () => {
 const getToday = () => new Date().toISOString().split('T')[0];
 
 const defaultState = {
-    version: 6,
+    version: 7,
     campaigns: [],
     oneShots: [],
     playerGames: [],
+    maps: [],
     usage: {
         promptsToday: 0,
         lastPromptDate: getToday(),
@@ -439,10 +449,12 @@ const AppContent = () => {
   const [activeCampaignId, setActiveCampaignId] = useState(null);
   const [activeOneShotId, setActiveOneShotId] = useState(null);
   const [activePlayerGameId, setActivePlayerGameId] = useState(null);
+  const [activeMapId, setActiveMapId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const { language, t } = useTranslation();
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isMapManagerOpen, setIsMapManagerOpen] = useState(false);
   
   const [theme, setThemeState] = useState(() => {
     try {
@@ -501,6 +513,7 @@ const AppContent = () => {
     setActiveCampaignId(null);
     setActiveOneShotId(null);
     setActivePlayerGameId(null);
+    setActiveMapId(null);
   };
 
   useEffect(() => {
@@ -787,6 +800,7 @@ const AppContent = () => {
         setActiveCampaignId(null);
         setActiveOneShotId(null);
         setActivePlayerGameId(null);
+        setActiveMapId(null);
         setIsBackupModalOpen(false); // Close modal on successful load
     } else {
         setError(t('errorInvalidData'));
@@ -926,6 +940,38 @@ const AppContent = () => {
     });
   }, [t, activePlayerGameId, openConfirmModal]);
   
+  // Battle Map Handlers
+  const handleNewMap = () => {
+    const newId = crypto.randomUUID();
+    const newMap = {
+      id: newId,
+      name: t('newMap'),
+      lastModified: Date.now(),
+      drawings: [],
+      tokens: []
+    };
+    setAppState(prev => ({ ...prev, maps: [...(prev.maps || []), newMap] }));
+    setActiveMapId(newId);
+  };
+
+  const handleUpdateMap = (updatedMap) => {
+    setAppState(prev => ({
+      ...prev,
+      maps: (prev.maps || []).map(m => m.id === updatedMap.id ? { ...updatedMap, lastModified: Date.now() } : m),
+    }));
+  };
+
+  const handleDeleteMap = useCallback((id) => {
+    openConfirmModal({
+      title: t('deleteMap'),
+      message: t('deleteMapConfirmation'),
+      onConfirm: () => {
+        setAppState(prev => ({ ...prev, maps: (prev.maps || []).filter(m => m.id !== id) }));
+        if (activeMapId === id) setActiveMapId(null);
+      }
+    });
+  }, [t, activeMapId, openConfirmModal]);
+  
   if (!isAnonymousMode && !user) {
     return React.createElement(LoginScreen, null);
   }
@@ -1036,6 +1082,13 @@ const AppContent = () => {
           renderAppContent()
       ),
       React.createElement(Footer, null),
+      appMode === 'gm' && React.createElement('div', { className: "fixed bottom-20 md:bottom-6 right-28 z-50" },
+        React.createElement('button', {
+            onClick: () => setIsMapManagerOpen(true),
+            'aria-label': t('battleMaps'),
+            className: "w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 text-white rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-transform duration-200"
+        }, React.createElement(BattleMapIcon, { isOpen: isMapManagerOpen }))
+      ),
       React.createElement(DiceRoller, null),
       React.createElement(ConfirmModal, {
         isOpen: modalState.isOpen,
@@ -1049,6 +1102,19 @@ const AppContent = () => {
         onClose: () => setIsBackupModalOpen(false),
         appState: { ...appState, theme },
         onLoad: handleLoadAppState
+      }),
+      React.createElement(BattleMapManager, {
+        isOpen: isMapManagerOpen,
+        onClose: () => {
+          setIsMapManagerOpen(false);
+          setActiveMapId(null);
+        },
+        maps: appState.maps || [],
+        activeMapId: activeMapId,
+        onSelectMap: setActiveMapId,
+        onNewMap: handleNewMap,
+        onUpdateMap: handleUpdateMap,
+        onDeleteMap: handleDeleteMap,
       }),
       React.createElement(BottomNavBar, {
           onBack: handleBack,
