@@ -35,47 +35,50 @@ const BackupIcon = () => React.createElement('svg', {
 const Header = ({ onBack, showBack, user, onSignOut, onOpenBackupModal }) => {
   const { t } = useTranslation();
 
-  return React.createElement('header', { className: "hidden md:flex bg-[var(--bg-secondary)]/80 backdrop-blur-sm shadow-lg shadow-[var(--accent-tertiary)]/10 py-3 px-4 sm:px-8 border-b-2 border-[var(--border-accent)] sticky top-0 z-50" },
+  return React.createElement('header', { className: "flex bg-[var(--bg-secondary)]/80 backdrop-blur-sm shadow-lg shadow-[var(--accent-tertiary)]/10 py-3 px-4 sm:px-8 border-b-2 border-[var(--border-accent)] sticky top-0 z-50" },
     React.createElement('div', { className: "container mx-auto flex items-center justify-between" },
       React.createElement('div', { className: "flex-1" },
         showBack ? React.createElement('button', { onClick: onBack, className: "flex items-center px-3 py-2 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors duration-300" },
           React.createElement(BackIcon, null),
-          t('backToList')
-        ) : null
+          React.createElement('span', { className: 'hidden sm:inline' }, t('backToList'))
+        ) : React.createElement('div', { className: 'w-10' })
       ),
-      React.createElement('div', { className: "flex items-center justify-center gap-4 flex-shrink-0" },
+      React.createElement('div', { className: "flex items-center justify-center gap-2 sm:gap-4 flex-shrink-0" },
         React.createElement(SwordIcon, null),
-        React.createElement('h1', { className: "text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] tracking-wider text-center", style: { fontFamily: 'serif' } },
-          "GDR Support"
+        React.createElement('h1', { className: "text-xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] tracking-wider text-center", style: { fontFamily: 'serif' } },
+          "Adventure Weaver"
         ),
         React.createElement(SwordIcon, null)
       ),
-      React.createElement('div', { className: "flex-1 flex justify-end items-center gap-4" },
-        React.createElement('a', { 
-            href: "https://github.com/drakonkat/FabulaUltimaWeaver",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            'aria-label': "View on GitHub",
-            className: "text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-          },
-            React.createElement(GithubIcon, null)
+      React.createElement('div', { className: "flex-1 flex justify-end items-center" },
+          React.createElement('div', { className: 'hidden md:flex items-center gap-4' },
+            React.createElement('a', { 
+                href: "https://github.com/drakonkat/FabulaUltimaWeaver",
+                target: "_blank",
+                rel: "noopener noreferrer",
+                'aria-label': "View on GitHub",
+                className: "text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+              },
+                React.createElement(GithubIcon, null)
+            ),
+            React.createElement('button', {
+                onClick: onOpenBackupModal,
+                'aria-label': t('backupAndRestore'),
+                title: t('backupAndRestore'),
+                className: "text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            },
+                React.createElement(BackupIcon, null)
+            ),
+            React.createElement(ThemeSwitcher, null),
+            React.createElement(LanguageSwitcher, null),
+            user && React.createElement('div', { className: "flex items-center gap-3" },
+              React.createElement('img', { src: user.picture, alt: user.name, className: "h-8 w-8 rounded-full border-2 border-[var(--accent-primary)]" }),
+              React.createElement('button', { onClick: onSignOut, className: "px-3 py-1.5 text-sm rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] text-[var(--text-primary)] transition-colors" },
+                t('signOut')
+              )
+            )
         ),
-        React.createElement('button', {
-            onClick: onOpenBackupModal,
-            'aria-label': t('backupAndRestore'),
-            title: t('backupAndRestore'),
-            className: "text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-        },
-            React.createElement(BackupIcon, null)
-        ),
-        React.createElement(ThemeSwitcher, null),
-        React.createElement(LanguageSwitcher, null),
-        user && React.createElement('div', { className: "flex items-center gap-3" },
-          React.createElement('img', { src: user.picture, alt: user.name, className: "h-8 w-8 rounded-full border-2 border-[var(--accent-primary)]" }),
-          React.createElement('button', { onClick: onSignOut, className: "px-3 py-1.5 text-sm rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] text-[var(--text-primary)] transition-colors" },
-            t('signOut')
-          )
-        )
+        React.createElement('div', { className: 'md:hidden w-10' }) // Spacer for mobile
       )
     )
   );

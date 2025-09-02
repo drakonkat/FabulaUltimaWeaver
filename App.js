@@ -985,6 +985,14 @@ const AppContent = () => {
       }
   };
 
+  const handleModeChange = useCallback((newMode) => {
+      if (appMode === newMode) return;
+      setAppMode(newMode);
+      setActiveCampaignId(null);
+      setActiveOneShotId(null);
+      setActivePlayerGameId(null);
+  }, [appMode]);
+
   const renderActiveCampaign = () => {
       if (isLoading && !activeCampaign?.storyData) return React.createElement(LoadingSpinner, null);
       if (activeCampaign) {
@@ -1005,6 +1013,8 @@ const AppContent = () => {
       return null;
   };
   
+  const showAnyDetailView = !!activeCampaignId || !!activeOneShotId || !!activePlayerGameId;
+
   const renderAppContent = () => {
       if (appMode === 'gm') {
           if (activeCampaignId) return renderActiveCampaign();
@@ -1037,11 +1047,9 @@ const AppContent = () => {
       }
   };
 
-  const showAnyDetailView = !!activeCampaignId || !!activeOneShotId || !!activePlayerGameId;
-
   return React.createElement(ThemeContext.Provider, { value: { theme, setTheme } },
       React.createElement('div', { 
-          className: "flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]",
+          className: "flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]" + (!showAnyDetailView ? ' pb-16 md:pb-0' : ''),
           style: {
             backgroundImage: 'radial-gradient(circle at top right, rgba(128, 0, 128, 0.2), transparent 40%), radial-gradient(circle at bottom left, rgba(106, 90, 205, 0.2), transparent 50%)',
             fontFamily: "'Helvetica Neue', 'Arial', sans-serif"
@@ -1059,18 +1067,14 @@ const AppContent = () => {
         },
           React.createElement(ModeSwitcher, {
               mode: appMode,
-              onModeChange: (mode) => {
-                  setAppMode(mode);
-                  setActiveCampaignId(null);
-                  setActivePlayerGameId(null);
-              }
+              onModeChange: handleModeChange,
           }),
           appMode === 'gm' && React.createElement(GMViewSwitcher, {
               view: gmView,
               onViewChange: setGmView
           })
       ),
-      React.createElement('main', { className: "container mx-auto px-4 pb-24 flex-grow" },
+      React.createElement('main', { className: "container mx-auto px-4 flex-grow" },
           error && React.createElement('div', {
               className: "w-full max-w-4xl mx-auto my-4 p-4 bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger-text)] rounded-lg text-center",
               onClick: () => setError(null),
@@ -1117,21 +1121,14 @@ const AppContent = () => {
         onDeleteMap: handleDeleteMap,
       }),
       React.createElement(BottomNavBar, {
-          onBack: handleBack,
-          showBack: showAnyDetailView,
           user: isAnonymousMode ? null : user,
           onSignOut: handleSignOut,
           mode: appMode,
-          onModeChange: (mode) => {
-              setAppMode(mode);
-              setActiveCampaignId(null);
-              setActivePlayerGameId(null);
-          },
-          showModeSwitcher: !showAnyDetailView,
+          onModeChange: handleModeChange,
           gmView: gmView,
           onGmViewChange: setGmView,
-          showGmViewSwitcher: !showAnyDetailView && appMode === 'gm',
-          onOpenBackupModal: () => setIsBackupModalOpen(true)
+          onOpenBackupModal: () => setIsBackupModalOpen(true),
+          isVisible: !showAnyDetailView
       }),
       React.createElement('style', {
           dangerouslySetInnerHTML: {
