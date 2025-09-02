@@ -31,8 +31,17 @@ const BackupIcon = () => React.createElement('svg', {
     React.createElement('path', { d: "M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 15v3a1 1 0 001 1h12a1 1 0 001-1v-3a1 1 0 00-.293-.707L16 11.586V8a6 6 0 00-6-6zM5 8a5 5 0 0110 0v3.586l-1.293 1.293A1 1 0 0013 14v2H7v-2a1 1 0 00-.707-.293L5 11.586V8z" })
 );
 
+const QuestionMarkCircleIcon = () => React.createElement('svg', {
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 20 20",
+    fill: "currentColor",
+    className: "h-6 w-6"
+},
+    React.createElement('path', { fillRule: "evenodd", d: "M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-1 1v1a1 1 0 102 0V8a1 1 0 00-1-1zm-1 4a1 1 0 100 2h1a1 1 0 100-2H9z", clipRule: "evenodd" })
+);
 
-const Header = ({ onBack, showBack, user, onSignOut, onOpenBackupModal }) => {
+
+const Header = ({ onBack, showBack, user, onSignOut, onOpenBackupModal, onOpenOnboarding }) => {
   const { t } = useTranslation();
 
   return React.createElement('header', { className: "flex bg-[var(--bg-secondary)]/80 backdrop-blur-sm shadow-lg shadow-[var(--accent-tertiary)]/10 py-3 px-4 sm:px-8 border-b-2 border-[var(--border-accent)] sticky top-0 z-50" },
@@ -68,6 +77,14 @@ const Header = ({ onBack, showBack, user, onSignOut, onOpenBackupModal }) => {
                 className: "text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             },
                 React.createElement(BackupIcon, null)
+            ),
+            React.createElement('button', {
+                onClick: onOpenOnboarding,
+                'aria-label': t('startTutorial'),
+                title: t('startTutorial'),
+                className: "text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+            },
+                React.createElement(QuestionMarkCircleIcon, null)
             ),
             React.createElement(ThemeSwitcher, null),
             React.createElement(LanguageSwitcher, null),

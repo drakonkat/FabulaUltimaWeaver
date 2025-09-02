@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { generateStory, rewriteText, generateCharacterBackground, generateOneShotContent } from './services/geminiService.js';
@@ -16,13 +17,13 @@ import OneShotDashboard from './components/OneShotDashboard.js';
 import BackupManager from './components/BackupManager.js';
 import LoginScreen from './components/LoginScreen.js';
 import Footer from './components/Footer.js';
+import Onboarding from './components/Onboarding.js';
 import { LanguageProvider, useTranslation } from './hooks/useTranslation.js';
 import { ThemeContext } from './hooks/useTheme.js';
 import { MAX_CAMPAIGNS, MAX_DAILY_PROMPTS, GOOGLE_CLIENT_ID } from './config.js';
 import { exampleCampaignData } from './data/exampleCampaign.js';
 import BottomNavBar from './components/BottomNavBar.js';
-import ModeSwitcher from './components/ModeSwitcher.js';
-import GMViewSwitcher from './components/GMViewSwitcher.js';
+import MainViewSwitcher from './components/MainViewSwitcher.js';
 import CampaignNameEditor from './components/CampaignNameEditor.js';
 import BattleMapManager from './components/BattleMapManager.js';
 
@@ -200,11 +201,13 @@ const DiceRoller = () => {
 const getToday = () => new Date().toISOString().split('T')[0];
 
 const defaultState = {
-    version: 7,
+    version: 8,
     campaigns: [],
     oneShots: [],
     playerGames: [],
     maps: [],
+    hasCompletedOnboarding: false,
+    hasCompletedMapTutorial: false,
     usage: {
         promptsToday: 0,
         lastPromptDate: getToday(),
@@ -455,6 +458,7 @@ const AppContent = () => {
   const { language, t } = useTranslation();
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isMapManagerOpen, setIsMapManagerOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   
   const [theme, setThemeState] = useState(() => {
     try {
@@ -542,8 +546,12 @@ const AppContent = () => {
 
             const usage = isAnonymousMode ? migratedState.usage : checkAndResetUsage(migratedState.usage);
             setAppState({ ...migratedState, usage });
+            if (!migratedState.hasCompletedOnboarding) {
+                setIsOnboardingOpen(true);
+            }
         } else {
             setAppState(defaultState);
+            setIsOnboardingOpen(true); // Open for first-time users
         }
     } catch (e) {
         console.error("Failed to load state from localStorage", e);
@@ -992,6 +1000,15 @@ const AppContent = () => {
       setActiveOneShotId(null);
       setActivePlayerGameId(null);
   }, [appMode]);
+  
+  const handleFinishOnboarding = () => {
+    setAppState(prev => ({ ...prev, hasCompletedOnboarding: true }));
+    setIsOnboardingOpen(false);
+  };
+
+  const handleFinishMapTutorial = () => {
+    setAppState(prev => ({ ...prev, hasCompletedMapTutorial: true }));
+  };
 
   const renderActiveCampaign = () => {
       if (isLoading && !activeCampaign?.storyData) return React.createElement(LoadingSpinner, null);
@@ -1060,20 +1077,15 @@ const AppContent = () => {
           showBack: showAnyDetailView, 
           user: isAnonymousMode ? null : user, 
           onSignOut: handleSignOut,
-          onOpenBackupModal: () => setIsBackupModalOpen(true)
+          onOpenBackupModal: () => setIsBackupModalOpen(true),
+          onOpenOnboarding: () => setIsOnboardingOpen(true)
       }),
-      !showAnyDetailView && React.createElement('div', {
-            className: "hidden md:flex container mx-auto justify-center py-4 animate-fade-in gap-8"
-        },
-          React.createElement(ModeSwitcher, {
-              mode: appMode,
-              onModeChange: handleModeChange,
-          }),
-          appMode === 'gm' && React.createElement(GMViewSwitcher, {
-              view: gmView,
-              onViewChange: setGmView
-          })
-      ),
+      !showAnyDetailView && React.createElement(MainViewSwitcher, {
+          appMode: appMode,
+          gmView: gmView,
+          onModeChange: handleModeChange,
+          onGmViewChange: setGmView,
+      }),
       React.createElement('main', { className: "container mx-auto px-4 flex-grow" },
           error && React.createElement('div', {
               className: "w-full max-w-4xl mx-auto my-4 p-4 bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger-text)] rounded-lg text-center",
@@ -1107,6 +1119,10 @@ const AppContent = () => {
         appState: { ...appState, theme },
         onLoad: handleLoadAppState
       }),
+      React.createElement(Onboarding, {
+        isOpen: isOnboardingOpen,
+        onFinish: handleFinishOnboarding
+      }),
       React.createElement(BattleMapManager, {
         isOpen: isMapManagerOpen,
         onClose: () => {
@@ -1119,6 +1135,8 @@ const AppContent = () => {
         onNewMap: handleNewMap,
         onUpdateMap: handleUpdateMap,
         onDeleteMap: handleDeleteMap,
+        hasCompletedMapTutorial: appState.hasCompletedMapTutorial,
+        onFinishMapTutorial: handleFinishMapTutorial,
       }),
       React.createElement(BottomNavBar, {
           user: isAnonymousMode ? null : user,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import CampaignNameEditor from './CampaignNameEditor.js';
+import MapTutorial from './MapTutorial.js';
 
 // START: ICONS
 const BackIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z", clipRule: "evenodd" }));
@@ -14,6 +15,7 @@ const PlayerIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/
 const MonsterIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M10 2a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 2zM5.22 5.22a.75.75 0 011.06 0l1.06 1.06a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zM13.66 6.28a.75.75 0 00-1.06-1.06l-1.06 1.06a.75.75 0 101.06 1.06l1.06-1.06zM10 18a8 8 0 100-16 8 8 0 000 16zM9 13a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" }));
 const UndoIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M3 10h10a8 8 0 018 8v2M3 10l6-6m-6 6l6 6" }));
 const ClearIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" }));
+const HelpIcon = () => React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', className: 'h-6 w-6', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor' }, React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.546-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }));
 // END: ICONS
 
 const MapList = ({ maps, onSelect, onDelete, onNew }) => {
@@ -43,7 +45,7 @@ const MapList = ({ maps, onSelect, onDelete, onNew }) => {
     );
 };
 
-const BattleMapCanvas = ({ map, onSave, onBack }) => {
+const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial }) => {
     const { t } = useTranslation();
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -272,7 +274,15 @@ const BattleMapCanvas = ({ map, onSave, onBack }) => {
         React.createElement('div', { className: 'flex-shrink-0 p-2 flex items-center justify-between bg-[var(--bg-tertiary)]' },
             React.createElement('button', { onClick: onBack, className: 'flex items-center px-3 py-2 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 text-white' }, React.createElement(BackIcon), t('backToList')),
             React.createElement('div', { className: 'w-full max-w-sm' }, React.createElement(CampaignNameEditor, { campaign: map, onUpdate: onSave })),
-            React.createElement('div', { className: 'w-32' }) // Spacer
+            React.createElement('div', { className: 'w-32 flex justify-end' },
+                React.createElement('button', {
+                    onClick: onShowTutorial,
+                    title: t('showHelp'),
+                    className: 'p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                },
+                    React.createElement(HelpIcon, null)
+                )
+            )
         ),
         React.createElement('div', { className: 'flex-grow flex' },
             React.createElement('div', { className: 'flex flex-col gap-2 p-2 bg-[var(--bg-tertiary)]' },
@@ -290,7 +300,22 @@ const BattleMapCanvas = ({ map, onSave, onBack }) => {
     );
 };
 
-const BattleMapManager = ({ isOpen, onClose, maps, activeMapId, onSelectMap, onNewMap, onUpdateMap, onDeleteMap }) => {
+const BattleMapManager = ({ isOpen, onClose, maps, activeMapId, onSelectMap, onNewMap, onUpdateMap, onDeleteMap, hasCompletedMapTutorial, onFinishMapTutorial }) => {
+    const [isTutorialVisible, setIsTutorialVisible] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && activeMapId && !hasCompletedMapTutorial) {
+            setIsTutorialVisible(true);
+        }
+    }, [isOpen, activeMapId, hasCompletedMapTutorial]);
+
+    const handleCloseTutorial = (dontShowAgain) => {
+        setIsTutorialVisible(false);
+        if (dontShowAgain) {
+            onFinishMapTutorial();
+        }
+    };
+
     if (!isOpen) return null;
     const activeMap = maps.find(m => m.id === activeMapId);
 
@@ -301,15 +326,22 @@ const BattleMapManager = ({ isOpen, onClose, maps, activeMapId, onSelectMap, onN
     },
         !activeMap && React.createElement('button', {
             onClick: onClose,
-            className: 'absolute top-4 right-4 p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full hover:bg-[var(--bg-tertiary)]'
+            className: 'absolute top-4 right-4 p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full hover:bg-[var(--bg-tertiary)] z-10'
         }, React.createElement('svg', { xmlns: 'http://www.w3.org/2000/svg', className: 'h-8 w-8', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor' }, React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M6 18L18 6M6 6l12 12' }))),
         
         activeMap ?
-            React.createElement(BattleMapCanvas, {
-                map: activeMap,
-                onSave: onUpdateMap,
-                onBack: () => onSelectMap(null)
-            }) :
+            React.createElement(React.Fragment, null,
+                React.createElement(BattleMapCanvas, {
+                    map: activeMap,
+                    onSave: onUpdateMap,
+                    onBack: () => onSelectMap(null),
+                    onShowTutorial: () => setIsTutorialVisible(true)
+                }),
+                React.createElement(MapTutorial, {
+                    isOpen: isTutorialVisible,
+                    onClose: handleCloseTutorial
+                })
+            ) :
             React.createElement(MapList, {
                 maps: maps,
                 onSelect: onSelectMap,
