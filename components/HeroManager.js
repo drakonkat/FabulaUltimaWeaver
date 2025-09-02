@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
@@ -99,7 +100,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     };
     
     const handleRandomize = async () => {
-        if (isRandomizing) return;
+        if (isRandomizing || !onGenerateBackground) return;
         setIsRandomizing(true);
         
         const { firstNames, lastNames, genders, races, classes, appearanceParts, baseStats } = randomizerData;
@@ -227,7 +228,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     const form = React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
         React.createElement('div', { className: "flex justify-between items-center"},
             React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingHero ? t('editHeroTitle') : t('addHeroTitle')),
-            isPlayerView && React.createElement('button', { type: "button", onClick: handleRandomize, disabled: isRandomizing, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
+            isPlayerView && onGenerateBackground && React.createElement('button', { type: "button", onClick: handleRandomize, disabled: isRandomizing, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
                 React.createElement(DiceIcon), t('randomizeHero')
             )
         ),
@@ -242,7 +243,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
         React.createElement('textarea', { placeholder: t('heroAppearancePlaceholder'), value: appearance, onChange: e => setAppearance(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-20 resize-none" }),
         React.createElement('div', { className: 'relative' },
             React.createElement('textarea', { placeholder: t('backgroundPlaceholder'), value: background, onChange: e => setBackground(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-24 resize-none", required: true, disabled: isRandomizing }),
-            isPlayerView && React.createElement('button', { type: "button", onClick: handleRewriteClick, disabled: isRewriting || isRandomizing, className: "absolute bottom-3 right-3 flex items-center px-2.5 py-1.5 text-xs rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
+            isPlayerView && onRewrite && React.createElement('button', { type: "button", onClick: handleRewriteClick, disabled: isRewriting || isRandomizing, className: "absolute bottom-3 right-3 flex items-center px-2.5 py-1.5 text-xs rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
                 isRewriting ? t('rewriting') : React.createElement(React.Fragment, null, React.createElement(SparklesIcon), t('rewriteWithAI'))
             )
         ),

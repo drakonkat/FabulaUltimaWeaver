@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { generateStory, rewriteText, generateCharacterBackground, generateOneShotContent } from './services/geminiService.js';
@@ -898,6 +896,54 @@ const AppContent = () => {
     setAppState(prev => ({ ...prev, oneShots: [...(prev.oneShots || []), newOneShot]}));
     setActiveOneShotId(newId);
   };
+
+  const handleLoadOneShotTemplate = useCallback((template) => {
+    const flattenTemplate = (obj, lang) => {
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+        if (typeof obj.en === 'string' && typeof obj.it === 'string') {
+            return obj[lang] || obj.en;
+        }
+        if (Array.isArray(obj)) {
+            return obj.map(item => flattenTemplate(item, lang));
+        }
+        const newObj = {};
+        for (const key in obj) {
+            newObj[key] = flattenTemplate(obj[key], lang);
+        }
+        return newObj;
+    };
+    
+    const localizedTemplate = flattenTemplate(template, language);
+    const existingOneShot = (appState.oneShots || []).find(os => os.title === localizedTemplate.title);
+    if (existingOneShot) {
+      setActiveOneShotId(existingOneShot.id);
+      return;
+    }
+
+    if (!canCreateOneShot) {
+        setError(t('limitCampaigns'));
+        return;
+    }
+
+    const newId = crypto.randomUUID();
+    const newOneShot = {
+      ...JSON.parse(JSON.stringify(localizedTemplate)), // Deep copy
+      id: newId,
+      lastModified: Date.now(),
+      heroes: (localizedTemplate.heroes || []).map(h => ({ ...h, id: crypto.randomUUID() })),
+      monsters: (localizedTemplate.monsters || []).map(m => ({ ...m, id: crypto.randomUUID() })),
+      mainStoryArcs: (localizedTemplate.mainStoryArcs || []).map(arc => ({ ...arc, id: crypto.randomUUID() })),
+      locations: (localizedTemplate.locations || []).map(loc => ({ ...loc, id: crypto.randomUUID() })),
+      events: (localizedTemplate.events || []).map(evt => ({ ...evt, id: crypto.randomUUID() })),
+      npcs: (localizedTemplate.npcs || []).map(npc => ({ ...npc, id: crypto.randomUUID() })),
+      items: (localizedTemplate.items || []).map(item => ({ ...item, id: crypto.randomUUID() })),
+    };
+
+    setAppState(prev => ({ ...prev, oneShots: [...(prev.oneShots || []), newOneShot]}));
+    setActiveOneShotId(newId);
+  }, [appState.oneShots, canCreateOneShot, t, language]);
   
   const handleDeleteOneShot = useCallback((id) => {
     openConfirmModal({
@@ -1053,7 +1099,7 @@ const AppContent = () => {
             gmView === 'campaigns' ?
               React.createElement(CampaignList, { campaigns: appState.campaigns, onSelect: setActiveCampaignId, onDelete: handleDeleteCampaign, onNew: handleNewCampaign, canCreate: canCreateCampaign, onLoadExample: handleLoadExampleCampaign })
               :
-              React.createElement(OneShotList, { oneShots: appState.oneShots || [], onSelect: setActiveOneShotId, onDelete: handleDeleteOneShot, onNew: handleNewOneShot, canCreate: canCreateOneShot })
+              React.createElement(OneShotList, { oneShots: appState.oneShots || [], onSelect: setActiveOneShotId, onDelete: handleDeleteOneShot, onNew: handleNewOneShot, canCreate: canCreateOneShot, onLoadTemplate: handleLoadOneShotTemplate })
           );
       } else { // Player Mode
           return !activePlayerGameId ?

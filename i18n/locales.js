@@ -190,6 +190,8 @@ export const translations = {
     keyItem: 'Key Item',
     effect: 'Description/Effect',
     locationFound: 'Location Found',
+    premadeAdventures: 'Premade Adventures',
+    loadAdventure: 'Load Adventure',
     // Deletion Modals
     confirmDelete: 'Delete',
     deleteGameTitle: 'Delete Game',
@@ -482,6 +484,8 @@ export const translations = {
     keyItem: 'Oggetto Chiave',
     effect: 'Descrizione/Effetto',
     locationFound: 'Luogo di Ritrovamento',
+    premadeAdventures: 'Avventure Pronte',
+    loadAdventure: 'Carica Avventura',
     // Deletion Modals
     confirmDelete: 'Elimina',
     deleteGameTitle: 'Elimina Partita',

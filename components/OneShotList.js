@@ -1,5 +1,7 @@
+
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
+import { oneShotTemplates } from '../data/oneShotTemplates/index.js';
 
 const PlusCircleIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6 mr-2", viewBox: "0 0 20 20", fill: "currentColor" },
     React.createElement('path', { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z", clipRule: "evenodd" })
@@ -9,7 +11,7 @@ const TrashIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2
     React.createElement('path', { fillRule: "evenodd", d: "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z", clipRule: "evenodd" })
 );
 
-const OneShotList = ({ oneShots, onSelect, onDelete, onNew, canCreate }) => {
+const OneShotList = ({ oneShots, onSelect, onDelete, onNew, canCreate, onLoadTemplate }) => {
     const { t, language } = useTranslation();
 
     const sortedOneShots = [...oneShots].sort((a, b) => b.lastModified - a.lastModified);
@@ -57,6 +59,23 @@ const OneShotList = ({ oneShots, onSelect, onDelete, onNew, canCreate }) => {
                         )
                     )
                 )
+        ),
+        React.createElement('div', { className: "mt-12 border-t-2 border-[var(--border-accent)]/30 pt-8" },
+            React.createElement('h3', { className: 'text-2xl font-bold text-[var(--highlight-secondary)] mb-4 text-center', style: { fontFamily: 'serif' } }, t('premadeAdventures')),
+            oneShotTemplates.length > 0 ?
+                React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+                    oneShotTemplates.map(template =>
+                        React.createElement('div', { key: template.title.en, className: 'p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex flex-col' },
+                            React.createElement('h4', { className: 'font-bold text-[var(--accent-primary)] text-lg' }, template.title[language] || template.title.en),
+                            React.createElement('p', { className: 'text-sm text-[var(--text-muted)] mt-1 flex-grow' }, template.mainStoryArcs[0].premise[language] || template.mainStoryArcs[0].premise.en),
+                            React.createElement('button', {
+                                onClick: () => onLoadTemplate(template),
+                                className: 'mt-4 w-full px-4 py-2 font-semibold text-sm text-white rounded-lg transition-all bg-[var(--accent-tertiary)] hover:bg-[var(--accent-secondary)]'
+                            }, t('loadAdventure'))
+                        )
+                    )
+                )
+            : React.createElement('p', {className: 'text-center text-[var(--text-muted)] italic'}, 'No templates available.')
         )
     );
 };
