@@ -1,7 +1,6 @@
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { generateStory, rewriteText, generateCharacterBackground, generateOneShotContent } from './services/geminiService.js';
+import { generateStory, rewriteText, generateCharacterBackground, generateOneShotContent, chatWithNpc, generateOneShotAdventure } from './services/geminiService.js';
 import Header from './components/Header.js';
 import PromptInput from './components/PromptInput.js';
 import LoadingSpinner from './components/LoadingSpinner.js';
@@ -213,6 +212,121 @@ const defaultState = {
 };
 
 // START: PLAYER MODE COMPONENTS
+
+const ChatBubbleIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 mr-1", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.08-3.242A8.937 8.937 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.832 14.168L5.5 12.5a6.938 6.938 0 00-.001-5l-.668-1.668a7.001 7.001 0 005.169 9.336z", clipRule: "evenodd" }));
+const CloseIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z", clipRule: "evenodd" }));
+const SendIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" }));
+
+
+const PlayerNpcCard = ({ npc, onEdit, onRemove }) => {
+    const { t, language } = useTranslation();
+    const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState([]);
+    const [userInput, setUserInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef(null);
+    const chatRef = useRef(null);
+
+    const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+    useEffect(scrollToBottom, [messages, isLoading]);
+    
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (chatRef.current && !chatRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [chatRef]);
+
+    const handleToggleChat = (e) => {
+        e.stopPropagation();
+        setIsOpen(!isOpen);
+        if (isOpen) { setMessages([]); }
+    };
+
+    const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!userInput.trim() || isLoading) return;
+
+        const newUserMessage = { role: 'user', text: userInput };
+        const newMessages = [...messages, newUserMessage];
+        setMessages(newMessages);
+        setUserInput('');
+        setIsLoading(true);
+
+        try {
+            const responseText = await chatWithNpc(npc, newMessages, language);
+            const newModelMessage = { role: 'model', text: responseText };
+            setMessages(prev => [...prev, newModelMessage]);
+        } catch (err) {
+            console.error(err);
+            const errorMessageText = err.message || t('errorTitle');
+            const errorMessage = { role: 'model', text: `[${errorMessageText}]`, isError: true };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return React.createElement('div', { key: npc.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
+        React.createElement('div', { className: "flex justify-between items-start" },
+            React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, npc.name),
+            React.createElement('div', { className: "flex gap-2 items-center" },
+                React.createElement('div', { className: 'relative inline-block', ref: chatRef },
+                    React.createElement('button', {
+                        onClick: handleToggleChat,
+                        title: t('chatWithNpc', { npcName: npc.name }),
+                        className: 'flex items-center gap-1 text-sm text-[var(--accent-primary)] hover:underline'
+                    }, React.createElement(ChatBubbleIcon), t('chat')),
+                    isOpen && React.createElement('div', {
+                        className: 'absolute bottom-full right-0 mb-2 w-80 max-w-xs bg-[var(--bg-secondary)] border-2 border-[var(--border-accent)] rounded-lg shadow-xl flex flex-col z-20 animate-fade-in-up',
+                        onClick: e => e.stopPropagation()
+                    },
+                        React.createElement('div', { className: 'flex justify-between items-center p-2 border-b border-[var(--border-secondary)]' },
+                            React.createElement('h4', { className: 'font-bold text-[var(--text-primary)] text-sm truncate' }, npc.name),
+                            React.createElement('button', { onClick: handleToggleChat, className: 'p-1 rounded-full hover:bg-[var(--bg-tertiary)]' }, React.createElement(CloseIcon))
+                        ),
+                        React.createElement('div', { className: 'flex-grow p-2 h-64 overflow-y-auto flex flex-col gap-2' },
+                            messages.map((msg, index) => React.createElement('div', {
+                                key: index,
+                                className: `max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                                    msg.isError ? 'bg-[var(--danger-bg)] text-[var(--danger-text)] self-center text-center' :
+                                    msg.role === 'user' ? 'bg-blue-600 text-white self-end' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] self-start'
+                                }`
+                            }, msg.text)),
+                            isLoading && React.createElement('div', { className: 'self-start flex items-center gap-2 p-2' },
+                                React.createElement('div', { className: 'w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]' }),
+                                React.createElement('div', { className: 'w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]' }),
+                                React.createElement('div', { className: 'w-2 h-2 bg-gray-400 rounded-full animate-bounce' })
+                            ),
+                            React.createElement('div', { ref: messagesEndRef })
+                        ),
+                        React.createElement('form', { onSubmit: handleSendMessage, className: 'p-2 border-t border-[var(--border-secondary)] flex gap-2' },
+                            React.createElement('input', {
+                                type: 'text',
+                                value: userInput,
+                                onChange: e => setUserInput(e.target.value),
+                                placeholder: t('typeMessagePlaceholder'),
+                                className: 'flex-grow bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-md px-2 py-1 text-sm focus:outline-none focus:border-[var(--border-accent)]'
+                            }),
+                            React.createElement('button', {
+                                type: 'submit',
+                                disabled: isLoading || !userInput.trim(),
+                                className: 'p-2 rounded-md bg-[var(--accent-tertiary)] text-white hover:bg-[var(--accent-secondary)] disabled:bg-gray-500 disabled:cursor-not-allowed'
+                            }, React.createElement(SendIcon))
+                        )
+                    )
+                ),
+                React.createElement('button', { onClick: () => onEdit(npc) }, "Edit"),
+                React.createElement('button', { onClick: () => onRemove(npc.id) }, "Remove")
+            )
+        ),
+        React.createElement('p', { className: "text-[var(--text-muted)] mt-2 whitespace-pre-wrap" }, npc.description)
+    );
+};
+
 const NpcManager = ({ npcs, onAdd, onUpdate, onRemove }) => {
     // This is a simplified manager for player notes on NPCs
     // For brevity, it's combined into a single component.
@@ -261,16 +375,14 @@ const NpcManager = ({ npcs, onAdd, onUpdate, onRemove }) => {
             )
         ),
         npcs.length === 0 ? React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t('noNpcs')) :
-        React.createElement('div', { className: "space-y-4" }, npcs.map(npc => React.createElement('div', { key: npc.id, className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
-            React.createElement('div', { className: "flex justify-between items-start" },
-                React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, npc.name),
-                React.createElement('div', { className: "flex gap-2" },
-                    React.createElement('button', { onClick: () => setEditingNpc(npc) }, "Edit"),
-                    React.createElement('button', { onClick: () => onRemove(npc.id) }, "Remove")
-                )
-            ),
-            React.createElement('p', { className: "text-[var(--text-muted)] mt-2 whitespace-pre-wrap" }, npc.description)
-        )))
+        React.createElement('div', { className: "space-y-4" }, npcs.map(npc => 
+            React.createElement(PlayerNpcCard, {
+                key: npc.id,
+                npc: npc,
+                onEdit: setEditingNpc,
+                onRemove: onRemove,
+            })
+        ))
     );
 };
 
@@ -457,6 +569,7 @@ const AppContent = () => {
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isMapManagerOpen, setIsMapManagerOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false);
   
   const [theme, setThemeState] = useState(() => {
     try {
@@ -897,6 +1010,44 @@ const AppContent = () => {
     setActiveOneShotId(newId);
   };
 
+  const handleGenerateNewOneShot = useCallback(async (params) => {
+    if (!canGenerate) {
+        setError(t('limitDailyPrompts'));
+        return;
+    }
+    setIsLoading(true);
+    setError(null);
+    setIsGeneratorModalOpen(false);
+    try {
+        const data = await generateOneShotAdventure(params, language);
+        incrementUsage();
+
+        // Add unique IDs to all nested items
+        const newId = crypto.randomUUID();
+        const newOneShot = {
+            ...data,
+            id: newId,
+            lastModified: Date.now(),
+            mainStoryArcs: (data.mainStoryArcs || []).map(arc => ({ ...arc, id: crypto.randomUUID() })),
+            locations: (data.locations || []).map(loc => ({ ...loc, id: crypto.randomUUID() })),
+            events: (data.events || []).map(evt => ({ ...evt, id: crypto.randomUUID() })),
+            npcs: (data.npcs || []).map(npc => ({ ...npc, id: crypto.randomUUID() })),
+            items: (data.items || []).map(item => ({ ...item, id: crypto.randomUUID() })),
+            heroes: (data.heroes || []).map(h => ({ ...h, id: crypto.randomUUID() })),
+            monsters: (data.monsters || []).map(m => ({ ...m, id: crypto.randomUUID() })),
+        };
+        
+        setAppState(prev => ({ ...prev, oneShots: [...(prev.oneShots || []), newOneShot]}));
+        setActiveOneShotId(newId);
+
+    } catch (err) {
+        setError(err.message || 'An unknown error occurred.');
+        console.error(err);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [canGenerate, language, t]);
+
   const handleLoadOneShotTemplate = useCallback((template) => {
     const flattenTemplate = (obj, lang) => {
         if (obj === null || typeof obj !== 'object') {
@@ -1099,7 +1250,20 @@ const AppContent = () => {
             gmView === 'campaigns' ?
               React.createElement(CampaignList, { campaigns: appState.campaigns, onSelect: setActiveCampaignId, onDelete: handleDeleteCampaign, onNew: handleNewCampaign, canCreate: canCreateCampaign, onLoadExample: handleLoadExampleCampaign })
               :
-              React.createElement(OneShotList, { oneShots: appState.oneShots || [], onSelect: setActiveOneShotId, onDelete: handleDeleteOneShot, onNew: handleNewOneShot, canCreate: canCreateOneShot, onLoadTemplate: handleLoadOneShotTemplate })
+              React.createElement(OneShotList, { 
+                oneShots: appState.oneShots || [], 
+                onSelect: setActiveOneShotId, 
+                onDelete: handleDeleteOneShot, 
+                onNew: handleNewOneShot, 
+                canCreate: canCreateOneShot, 
+                onLoadTemplate: handleLoadOneShotTemplate,
+                onOpenGenerator: () => setIsGeneratorModalOpen(true),
+                onGenerate: handleGenerateNewOneShot,
+                isGeneratorOpen: isGeneratorModalOpen,
+                onCloseGenerator: () => setIsGeneratorModalOpen(false),
+                isLoading: isLoading,
+                canGenerate: canGenerate
+              })
           );
       } else { // Player Mode
           return !activePlayerGameId ?
@@ -1141,7 +1305,8 @@ const AppContent = () => {
               React.createElement('p', { className: "font-bold" }, t('errorTitle')),
               React.createElement('p', null, error)
           ),
-          renderAppContent()
+          isLoading && !activeCampaignId && !activeOneShotId && React.createElement(LoadingSpinner, null),
+          !isLoading && renderAppContent()
       ),
       React.createElement(Footer, null),
       appMode === 'gm' && React.createElement('div', { className: "fixed bottom-20 md:bottom-6 right-28 z-50" },

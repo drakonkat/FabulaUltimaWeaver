@@ -1,8 +1,12 @@
-
 export const theWhisperingMaw = {
   title: {
     en: "The Whispering Maw",
     it: "Le Fauci Sussurranti"
+  },
+  metadata: {
+    difficulty: { en: "Medium-Hard", it: "Medio-Difficile" },
+    duration: { en: "4-5 hours", it: "4-5 ore" },
+    players: { en: "3-4 players", it: "3-4 giocatori" }
   },
   mainStoryArcs: [
     {
@@ -215,6 +219,34 @@ export const theWhisperingMaw = {
       inventory: [
         { name: { en: "Scholarly Tome", it: "Tomo Accademico" }, quantity: "1", weight: "5" },
         { name: { en: "Geological Tools", it: "Strumenti Geologici" }, quantity: "1", weight: "8" }
+      ]
+    },
+    {
+      name: { en: "Kaelen 'Quick' Varis", it: "Kaelen 'Veloce' Varis" },
+      gender: { en: "Female", it: "Femmina" },
+      age: "25",
+      race: { en: "Human", it: "Umana" },
+      class: { en: "Rogue", it: "Ladro" },
+      appearance: {
+        en: "Wiry and sharp-eyed, with dark practical leathers and a hood she often keeps up. She moves with a quiet confidence.",
+        it: "Nervosa e dagli occhi acuti, con indumenti di cuoio scuro e pratico e un cappuccio che tiene spesso alzato. Si muove con una tranquilla sicurezza."
+      },
+      background: {
+        en: "A scout hired by the guild for her discretion. Her job is to get in, find out what happened to the miners and the investment, and get out without drawing attention.",
+        it: "Un'esploratrice assunta dalla gilda per la sua discrezione. Il suo lavoro è entrare, scoprire cosa è successo ai minatori e all'investimento, e uscire senza attirare l'attenzione."
+      },
+      status: { en: "Professional", it: "Professionale" },
+      stats: [
+        { key: "maxHP", value: "70" },
+        { key: "currentHP", value: "70" },
+        { key: "dex", value: "d12" },
+        { key: "ins", value: "d10" },
+        { key: "mig", value: "d6" },
+        { key: "wlp", value: "d6" }
+      ],
+      inventory: [
+        { name: { en: "Shortbow", it: "Arco Corto" }, quantity: "1", weight: "2" },
+        { name: { en: "Thieves' Tools", it: "Strumenti da Ladro" }, quantity: "1", weight: "1" }
       ]
     }
   ],

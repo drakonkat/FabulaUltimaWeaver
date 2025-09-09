@@ -1,7 +1,7 @@
-
-
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
+import { chatWithNpc } from '../services/geminiService.js';
+
 
 const Section = ({ title, children, icon }) => React.createElement('div', { className: "bg-[var(--bg-secondary)]/60 p-6 rounded-lg border border-[var(--border-accent)]/50 shadow-lg mb-6" },
     React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)] mb-4 flex items-center gap-3", style: { fontFamily: 'serif' } },
@@ -27,10 +27,116 @@ const SwordsIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/
     React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "2", d: "M5 12l7-7 7 7-7 7-7-7z", transform: "rotate(45 12 12)" })
 );
 
-const NpcCard = ({ npc }) => React.createElement('div', { className: "mb-4 p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
-    React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-lg" }, npc.name),
-    React.createElement('p', { className: "text-[var(--text-muted)] whitespace-pre-wrap" }, npc.description)
-);
+const ChatBubbleIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 mr-1", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.08-3.242A8.937 8.937 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.832 14.168L5.5 12.5a6.938 6.938 0 00-.001-5l-.668-1.668a7.001 7.001 0 005.169 9.336z", clipRule: "evenodd" }));
+const CloseIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z", clipRule: "evenodd" }));
+const SendIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" }));
+
+
+const NpcCard = ({ npc }) => {
+    const { t, language } = useTranslation();
+    const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState([]);
+    const [userInput, setUserInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef(null);
+    const chatRef = useRef(null);
+
+    const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
+    useEffect(scrollToBottom, [messages, isLoading]);
+    
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (chatRef.current && !chatRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [chatRef]);
+
+    const handleToggleChat = (e) => {
+        e.stopPropagation();
+        const newState = !isOpen;
+        setIsOpen(newState);
+        if (!newState) { setMessages([]); }
+    };
+
+    const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!userInput.trim() || isLoading) return;
+
+        const newUserMessage = { role: 'user', text: userInput };
+        const newMessages = [...messages, newUserMessage];
+        setMessages(newMessages);
+        setUserInput('');
+        setIsLoading(true);
+
+        try {
+            const responseText = await chatWithNpc(npc, newMessages, language);
+            const newModelMessage = { role: 'model', text: responseText };
+            setMessages(prev => [...prev, newModelMessage]);
+        } catch (err) {
+            console.error(err);
+            const errorMessageText = err.message || t('errorTitle');
+            const errorMessage = { role: 'model', text: `[${errorMessageText}]`, isError: true };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    return React.createElement('div', { className: "mb-4 p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
+        React.createElement('div', { className: 'flex justify-between items-start' },
+            React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-lg" }, npc.name),
+            React.createElement('div', { className: 'relative inline-block', ref: chatRef },
+                React.createElement('button', {
+                    onClick: handleToggleChat,
+                    title: t('chatWithNpc', { npcName: npc.name }),
+                    className: 'flex items-center gap-1 text-sm text-[var(--accent-primary)] hover:underline'
+                }, React.createElement(ChatBubbleIcon), t('chat')),
+                isOpen && React.createElement('div', {
+                    className: 'absolute bottom-full right-0 mb-2 w-80 max-w-xs bg-[var(--bg-secondary)] border-2 border-[var(--border-accent)] rounded-lg shadow-xl flex flex-col z-20 animate-fade-in-up',
+                    onClick: e => e.stopPropagation()
+                },
+                    React.createElement('div', { className: 'flex justify-between items-center p-2 border-b border-[var(--border-secondary)]' },
+                        React.createElement('h4', { className: 'font-bold text-[var(--text-primary)] text-sm truncate' }, npc.name),
+                        React.createElement('button', { onClick: handleToggleChat, className: 'p-1 rounded-full hover:bg-[var(--bg-tertiary)]' }, React.createElement(CloseIcon))
+                    ),
+                    React.createElement('div', { className: 'flex-grow p-2 h-64 overflow-y-auto flex flex-col gap-2' },
+                        messages.map((msg, index) => React.createElement('div', {
+                            key: index,
+                            className: `max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                                msg.isError ? 'bg-[var(--danger-bg)] text-[var(--danger-text)] self-center text-center' :
+                                msg.role === 'user' ? 'bg-blue-600 text-white self-end' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] self-start'
+                            }`
+                        }, msg.text)),
+                        isLoading && React.createElement('div', { className: 'self-start flex items-center gap-2 p-2' },
+                            React.createElement('div', { className: 'w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]' }),
+                            React.createElement('div', { className: 'w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]' }),
+                            React.createElement('div', { className: 'w-2 h-2 bg-gray-400 rounded-full animate-bounce' })
+                        ),
+                        React.createElement('div', { ref: messagesEndRef })
+                    ),
+                    React.createElement('form', { onSubmit: handleSendMessage, className: 'p-2 border-t border-[var(--border-secondary)] flex gap-2' },
+                        React.createElement('input', {
+                            type: 'text',
+                            value: userInput,
+                            onChange: e => setUserInput(e.target.value),
+                            placeholder: t('typeMessagePlaceholder'),
+                            className: 'flex-grow bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-md px-2 py-1 text-sm focus:outline-none focus:border-[var(--border-accent)]'
+                        }),
+                        React.createElement('button', {
+                            type: 'submit',
+                            disabled: isLoading || !userInput.trim(),
+                            className: 'p-2 rounded-md bg-[var(--accent-tertiary)] text-white hover:bg-[var(--accent-secondary)] disabled:bg-gray-500 disabled:cursor-not-allowed'
+                        }, React.createElement(SendIcon))
+                    )
+                )
+            )
+        ),
+        React.createElement('p', { className: "text-[var(--text-muted)] whitespace-pre-wrap mt-2" }, npc.description)
+    );
+};
 
 const CombatCard = ({ combat }) => {
     const { t } = useTranslation();

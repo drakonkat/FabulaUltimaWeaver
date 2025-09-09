@@ -1,8 +1,12 @@
-
 export const theCrimsonCovenant = {
   title: {
     en: "The Crimson Covenant",
     it: "Il Patto Cremisi"
+  },
+  metadata: {
+    difficulty: { en: "Medium", it: "Medio" },
+    duration: { en: "3-4 hours", it: "3-4 ore" },
+    players: { en: "3-5 players", it: "3-5 giocatori" }
   },
   mainStoryArcs: [
     {
@@ -221,6 +225,34 @@ export const theCrimsonCovenant = {
       inventory: [
         { name: { en: "Oak Staff", it: "Bastone di Quercia" }, quantity: "1", weight: "4" },
         { name: { en: "Spell Components", it: "Componenti per Incantesimi" }, quantity: "1", weight: "1" }
+      ]
+    },
+    {
+      name: { en: "Sir Gideon", it: "Sir Gideon" },
+      gender: { en: "Male", it: "Maschio" },
+      age: "35",
+      race: { en: "Human", it: "Umano" },
+      class: { en: "Paladin", it: "Paladino" },
+      appearance: {
+        en: "Broad-shouldered and resolute, clad in gleaming plate armor bearing the crest of a silver sun. His gaze is honest and unwavering.",
+        it: "Spalle larghe e risoluto, vestito con un'armatura a piastre scintillante che porta lo stemma di un sole d'argento. Il suo sguardo è onesto and incrollabile."
+      },
+      background: {
+        en: "A knight of the Order of the Silver Sun, Gideon was sent to investigate rumors of a heretical sect tarnishing the name of knighthood on Mount Cinder. He is a bastion of justice.",
+        it: "Un cavaliere dell'Ordine del Sole d'Argento, Gideon è stato inviato per indagare su voci di una setta eretica che infanga il nome della cavalleria sul Monte Cinder. È un baluardo della giustizia."
+      },
+      status: { en: "Righteous", it: "Giusto" },
+      stats: [
+        { key: "maxHP", value: "90" },
+        { key: "currentHP", value: "90" },
+        { key: "dex", value: "d6" },
+        { key: "ins", value: "d8" },
+        { key: "mig", value: "d10" },
+        { key: "wlp", value: "d10" }
+      ],
+      inventory: [
+        { name: { en: "Longsword", it: "Spada Lunga" }, quantity: "1", weight: "3" },
+        { name: { en: "Heater Shield", it: "Scudo a Mandorla" }, quantity: "1", weight: "6" }
       ]
     }
   ],

@@ -85,6 +85,110 @@ const ONE_SHOT_SCHEMAS = {
     // Add other schemas here for locations, npcs, etc.
 };
 
+const ONE_SHOT_ADVENTURE_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING, description: "An evocative and engaging title for the entire one-shot adventure." },
+        mainStoryArcs: {
+            type: Type.ARRAY,
+            description: "The main plot of the adventure, broken into one or more sequential story arcs. Must contain at least one arc.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING, description: "A title for this specific part of the story." },
+                    premise: { type: Type.STRING, description: "A one-sentence summary of this story arc." },
+                    hook: { type: Type.STRING, description: "How this arc begins or connects from the previous one." },
+                    objective: { type: Type.STRING, description: "The clear goal for the players in this arc." },
+                    stakes: { type: Type.STRING, description: "What's at risk in this part of the adventure." },
+                    climax: { type: Type.STRING, description: "The peak event or confrontation for this arc." },
+                    resolution: { type: Type.STRING, description: "How this arc concludes and leads to the next, or the end of the adventure." },
+                },
+                required: ['title', 'premise', 'hook', 'objective', 'stakes', 'climax', 'resolution'],
+            },
+        },
+        locations: {
+            type: Type.ARRAY,
+            description: "Key locations the players will visit. Should include at least two distinct locations.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    description: { type: Type.STRING, description: "A sensory, evocative description of the location." },
+                    keyFeatures: { type: Type.STRING, description: "Important interactive elements, secrets, or features, separated by commas." },
+                },
+                required: ['name', 'description'],
+            },
+        },
+        events: {
+            type: Type.ARRAY,
+            description: "Scripted events or potential encounters. Should include a mix of types (combat, social, puzzle).",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    eventType: { type: Type.STRING, enum: ['social', 'combat', 'puzzle', 'exploration'] },
+                    description: { type: Type.STRING, description: "What happens during this event." },
+                    clue: { type: Type.STRING, description: "Information or clues gained from this event." },
+                    outcome: { type: Type.STRING, description: "Potential outcomes based on player success or failure." },
+                },
+                required: ['eventType', 'description'],
+            },
+        },
+        npcs: {
+            type: Type.ARRAY,
+            description: "Important Non-Player Characters. Must include at least one quest giver and one antagonist.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    role: { type: Type.STRING, description: "The NPC's role in the story (e.g., Quest Giver, Villain, Ally, Obstacle)." },
+                    keyCharacteristic: { type: Type.STRING, description: "A defining personality trait or mannerism." },
+                    motivation: { type: Type.STRING, description: "What this character wants." },
+                    keyInformation: { type: Type.STRING, description: "Crucial knowledge they possess." },
+                },
+                required: ['name', 'role', 'keyCharacteristic', 'motivation'],
+            },
+        },
+        items: {
+            type: Type.ARRAY,
+            description: "Key items or rewards in the adventure.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    itemType: { type: Type.STRING, enum: ['artifact', 'consumable', 'loot', 'keyItem'] },
+                    effect: { type: Type.STRING, description: "The item's description and mechanical/narrative effect." },
+                    locationFound: { type: Type.STRING, description: "Where this item can be found." },
+                },
+                required: ['name', 'itemType', 'effect'],
+            },
+        },
+        monsters: {
+            type: Type.ARRAY,
+            description: "A small list of potential monsters or enemies players might face, with simple stats.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    attributes: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                key: { type: Type.STRING },
+                                value: { type: Type.STRING },
+                            },
+                            required: ['key', 'value']
+                        }
+                    }
+                },
+                required: ['name', 'attributes']
+            }
+        }
+    },
+    required: ['title', 'mainStoryArcs', 'locations', 'events', 'npcs', 'items', 'monsters'],
+};
+
+
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -295,6 +399,93 @@ export const generateOneShotContent = async (partToGenerate, oneShotContext, lan
         return parsedData;
     } catch (e) {
         console.error("Failed to parse JSON response for one-shot content:", response.text);
+        throw new Error("The AI returned an invalid response. Please try again.");
+    }
+};
+
+export const chatWithNpc = async (npc, chatHistory, language) => {
+    const model = 'gemini-2.5-flash';
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+
+    const npcProfile = `
+        - Name: ${npc.name || 'N/A'}
+        - Description/Personality: ${npc.description || 'N/A'}
+        - Role in Story: ${npc.role || 'N/A'}
+        - Key Characteristics: ${npc.keyCharacteristic || 'N/A'}
+        - Motivation: ${npc.motivation || 'N/A'}
+        - Key Information they Possess: ${npc.keyInformation || 'N/A'}
+    `.trim().replace(/ {4,}/g, '');
+
+    const systemInstruction = `You are an AI strictly roleplaying as a Non-Player Character (NPC) in a tabletop RPG.
+        **Your Persona:**
+        You must fully adopt the persona of the following NPC. Do not break character under any circumstances.
+        ${npcProfile}
+
+        **Roleplaying Rules:**
+        1.  **Stay in Character:** ALWAYS respond as the NPC. Never mention you are an AI. Use "I", "me", "my" referring to yourself as the NPC.
+        2.  **Limited Knowledge:** Your knowledge is strictly limited to what is in your persona description and what has been said in the current conversation. Do not invent new major plot points, world lore, or information your character wouldn't know. If asked something you don't know, respond naturally (e.g., "I'm not sure about that," "That's beyond my knowledge," etc.).
+        3.  **Be Conversational:** Respond naturally to the user's message. Your goal is to have a conversation. Keep responses concise and in character.
+        4.  **Language:** You MUST respond only in ${languageInstruction}.
+
+        The user is a player character talking to you. Engage with them.
+    `;
+
+    const contents = chatHistory.map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.text }]
+    }));
+    
+    if (contents.length === 0) {
+        throw new Error("Chat history cannot be empty.");
+    }
+
+    const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+            systemInstruction,
+            thinkingConfig: { thinkingBudget: 0 }
+        },
+    });
+
+    return response.text.trim();
+};
+
+export const generateOneShotAdventure = async (params, language) => {
+    const model = 'gemini-2.5-flash';
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+
+    const systemInstruction = `You are a creative and expert Game Master for tabletop RPGs. Your task is to generate a complete, playable, and well-structured one-shot adventure based on the user-provided parameters. You must adhere strictly to the provided JSON schema and fill all fields with rich, thematic content. Your entire response, including all text in the JSON output, MUST be in ${languageInstruction}. The adventure should be coherent, engaging, and ready to be played.`;
+    
+    const prompt = `
+        Please generate a one-shot adventure with the following specifications:
+        - Core Premise: "${params.premise}"
+        - Genre/Style: ${params.genre}
+        - Number of Heroes: ${params.numHeroes}
+        - Difficulty: ${params.difficulty}
+        - Estimated Duration: ${params.duration}
+
+        Flesh this out into a full adventure. Ensure it includes a clear beginning, middle, and end, with interesting challenges and memorable NPCs.
+    `;
+
+    const contents = { parts: [{ text: prompt }] };
+
+    const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: ONE_SHOT_ADVENTURE_SCHEMA,
+        },
+    });
+
+    try {
+        const jsonText = response.text.trim();
+        const parsedData = JSON.parse(jsonText);
+        return parsedData;
+    } catch (e) {
+        console.error("Failed to parse JSON response for one-shot adventure:", response.text);
         throw new Error("The AI returned an invalid response. Please try again.");
     }
 };

@@ -1,8 +1,12 @@
-
 export const theSylvanOracle = {
   title: {
     en: "The Sylvan Oracle",
     it: "L'Oracolo Silvano"
+  },
+  metadata: {
+    difficulty: { en: "Medium", it: "Medio" },
+    duration: { en: "5-6 hours (multi-arc)", it: "5-6 ore (multi-arco)" },
+    players: { en: "3-5 players", it: "3-5 giocatori" }
   },
   mainStoryArcs: [
     {
@@ -197,6 +201,24 @@ export const theSylvanOracle = {
       inventory: [
         { name: { en: "Livingwood Staff", it: "Bastone di Legnovivo" }, quantity: "1", weight: "4" },
         { name: { en: "Holy Symbol", it: "Simbolo Sacro" }, quantity: "1", weight: "1" }
+      ]
+    },
+    {
+      name: { en: "Borin Stonehand", it: "Borin Manodipietra" },
+      gender: { en: "Male", it: "Maschio" },
+      age: "154",
+      race: { en: "Dwarf", it: "Nano" },
+      class: { en: "Guardian", it: "Guardiano" },
+      appearance: { en: "Stout and dependable, with a magnificent beard braided with stone beads. His hands are covered in stonemason's dust.", it: "Robusto e affidabile, con una magnifica barba intrecciata con perle di pietra. Le sue mani sono coperte di polvere di scalpellino." },
+      background: { en: "A master stonemason from the nearby mountains, Borin felt the blight as a sickness in the very rock and earth. He has come to Oakhaven to find the source of this corruption.", it: "Un maestro scalpellino delle montagne vicine, Borin ha avvertito la piaga come una malattia nella roccia e nella terra stessa. È venuto a Oakhaven per trovare la fonte di questa corruzione." },
+      status: { en: "Worried", it: "Preoccupato" },
+      stats: [
+        { key: "maxHP", value: "100" }, { key: "currentHP", value: "100" },
+        { key: "dex", value: "d6" }, { key: "ins", value: "d6" }, { key: "mig", value: "d12" }, { key: "wlp", value: "d10" }
+      ],
+      inventory: [
+        { name: { en: "Stonemason's Hammer", it: "Martello da Scalpellino" }, quantity: "1", weight: "10" },
+        { name: { en: "Dwarven Shield", it: "Scudo Nanico" }, quantity: "1", weight: "8" }
       ]
     }
   ],

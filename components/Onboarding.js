@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 
 // START: ICONS
@@ -7,6 +7,9 @@ const PlayerIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/
 const BookIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-12 w-12 text-[var(--accent-primary)]", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" }));
 const ToolsIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-12 w-12 text-[var(--accent-primary)]", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor" }, React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" }), React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }));
 const SparklesIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-12 w-12 text-[var(--highlight-secondary)]", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm10 2H5v10h10V5z" }), React.createElement('path', { d: "M10 9a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1H8a1 1 0 110-2h1v-1a1 1 0 011-1z" }));
+const CloseIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 2 },
+    React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 18L18 6M6 6l12 12" })
+);
 // END: ICONS
 
 const ProgressBar = ({ current, total }) => {
@@ -23,6 +26,12 @@ const ProgressBar = ({ current, total }) => {
 const Onboarding = ({ isOpen, onFinish }) => {
     const { t } = useTranslation();
     const [currentStep, setCurrentStep] = useState(0);
+
+    useEffect(() => {
+        if (isOpen) {
+            setCurrentStep(0);
+        }
+    }, [isOpen]);
 
     const steps = [
         {
@@ -78,11 +87,20 @@ const Onboarding = ({ isOpen, onFinish }) => {
     return React.createElement('div', {
         className: "fixed inset-0 bg-black/80 z-[100] flex items-center justify-center animate-fade-in",
         'aria-modal': true,
-        role: "dialog"
+        role: "dialog",
+        onClick: onFinish
     },
         React.createElement('div', {
-            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-8 w-full max-w-lg m-4 border-2 border-[var(--border-accent)] flex flex-col items-center text-center"
+            className: "relative bg-[var(--bg-secondary)] rounded-lg shadow-xl p-8 w-full max-w-lg m-4 border-2 border-[var(--border-accent)] flex flex-col items-center text-center",
+            onClick: e => e.stopPropagation()
         },
+            React.createElement('button', {
+                onClick: onFinish,
+                className: "absolute top-3 right-3 p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-full hover:bg-[var(--bg-tertiary)] transition-colors",
+                'aria-label': "Close"
+            },
+                React.createElement(CloseIcon, null)
+            ),
             React.createElement('div', { className: 'mb-6 h-12 flex items-center' }, current.icon),
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)] mb-4", style: { fontFamily: 'serif' } }, current.title),
             React.createElement('p', {
