@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { generateStory, rewriteText, generateCharacterBackground, generateOneShotContent, chatWithNpc, generateOneShotAdventure } from './services/geminiService.js';
@@ -644,11 +645,45 @@ const AppContent = () => {
     try {
         const savedStateJSON = localStorage.getItem(storageKey);
         if (savedStateJSON) {
-            const parsedState = JSON.parse(savedStateJSON);
+            let parsedState = JSON.parse(savedStateJSON);
             const { theme: savedTheme, ...restOfState } = parsedState;
 
             if (savedTheme) setTheme(savedTheme);
             
+            // MIGRATION for Battle Maps
+            if (restOfState.maps && Array.isArray(restOfState.maps)) {
+                restOfState.maps = restOfState.maps.map(map => {
+                    let migratedMap;
+                    if (map.layers) { // Already has layers
+                        migratedMap = {
+                            ...map,
+                            fogOfWar: map.fogOfWar || { enabled: false, radius: 150 }
+                        };
+                    } else { // Old format, needs layer migration
+                        const defaultLayerId = crypto.randomUUID();
+                        const newMap = { ...map };
+                        delete newMap.drawings;
+                        delete newMap.tokens;
+
+                        migratedMap = {
+                            ...newMap,
+                            layers: [{
+                                id: defaultLayerId,
+                                name: t('defaultLayerName', { number: 1 }),
+                                drawings: map.drawings || [],
+                                tokens: map.tokens || []
+                            }],
+                            activeLayerId: defaultLayerId,
+                            fogOfWar: { enabled: false, radius: 150 },
+                        };
+                    }
+                    // Add theme to whichever path was taken
+                    migratedMap.theme = map.theme || 'grid';
+                    return migratedMap;
+                });
+            }
+
+
             const migratedState = {
                 ...defaultState,
                 ...restOfState,
@@ -668,7 +703,7 @@ const AppContent = () => {
         console.error("Failed to load state from localStorage", e);
         setAppState(defaultState);
     }
-  }, [user, isAnonymousMode, checkAndResetUsage]);
+  }, [user, isAnonymousMode, checkAndResetUsage, t]);
 
   useEffect(() => {
     let storageKey = null;
@@ -1148,12 +1183,20 @@ const AppContent = () => {
   // Battle Map Handlers
   const handleNewMap = () => {
     const newId = crypto.randomUUID();
+    const defaultLayerId = crypto.randomUUID();
     const newMap = {
       id: newId,
       name: t('newMap'),
       lastModified: Date.now(),
-      drawings: [],
-      tokens: []
+      layers: [{
+          id: defaultLayerId,
+          name: t('defaultLayerName', { number: 1 }),
+          drawings: [],
+          tokens: []
+      }],
+      activeLayerId: defaultLayerId,
+      fogOfWar: { enabled: false, radius: 150 },
+      theme: 'grid'
     };
     setAppState(prev => ({ ...prev, maps: [...(prev.maps || []), newMap] }));
     setActiveMapId(newId);
@@ -1348,6 +1391,7 @@ const AppContent = () => {
         onDeleteMap: handleDeleteMap,
         hasCompletedMapTutorial: appState.hasCompletedMapTutorial,
         onFinishMapTutorial: handleFinishMapTutorial,
+        openConfirmModal: openConfirmModal
       }),
       React.createElement(BottomNavBar, {
           user: isAnonymousMode ? null : user,

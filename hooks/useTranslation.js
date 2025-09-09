@@ -22,9 +22,20 @@ export const LanguageProvider = ({ children }) => {
         setLanguageState(newLanguage);
     };
 
-    const t = (key) => {
+    const t = (key, replacements) => {
         const lang_map = translations[language] || translations['en'];
-        return lang_map[key] || key;
+        let translation = lang_map[key] || key;
+
+        if (replacements) {
+            for (const placeholder in replacements) {
+                translation = translation.replace(
+                    new RegExp(`\\{${placeholder}\\}`, 'g'),
+                    replacements[placeholder]
+                );
+            }
+        }
+        
+        return translation;
     };
 
     return React.createElement(
