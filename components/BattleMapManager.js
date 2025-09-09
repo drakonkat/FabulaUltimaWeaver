@@ -73,6 +73,14 @@ const DungeonGeneratorModal = ({ isOpen, onClose, onGenerate }) => {
                     React.createElement('option', { value: 'large' }, t('large')),
                 )
             ),
+            React.createElement('div', null,
+                React.createElement('label', { className: 'block text-sm font-medium text-[var(--text-secondary)] mb-1' }, t('dungeonType')),
+                React.createElement('select', { value: settings.type, onChange: e => setSettings(s => ({ ...s, type: e.target.value })), className: "w-full p-2 bg-[var(--bg-primary)] rounded-md border border-[var(--border-primary)]" },
+                    React.createElement('option', { value: 'classicDungeon' }, t('classicDungeon')),
+                    React.createElement('option', { value: 'caverns' }, t('caverns')),
+                    React.createElement('option', { value: 'ruins' }, t('ruins')),
+                )
+            ),
             React.createElement('div', { className: "flex justify-end gap-2 pt-4 border-t border-[var(--border-secondary)]" },
                 React.createElement('button', { onClick: onClose, className: "px-4 py-2 text-sm font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
                 React.createElement('button', { onClick: handleGenerate, className: "px-4 py-2 text-sm font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)]" }, t('generate'))
@@ -115,6 +123,7 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
         const drawItem = (item, context) => {
             if (!item) return;
             context.strokeStyle = item.color || '#FFFFFF'; context.lineWidth = item.strokeWidth || 3;
+            context.fillStyle = item.fill || item.color || '#FFFFFF';
             context.lineCap = 'round'; context.lineJoin = 'round';
 
             switch (item.type) {
@@ -124,9 +133,14 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                         item.points.forEach(p => context.lineTo(p.x, p.y)); context.stroke();
                     } break;
                 case 'rectangle':
-                    context.strokeRect(item.x, item.y, item.width, item.height); break;
+                    if (item.fill) context.fillRect(item.x, item.y, item.width, item.height);
+                    else context.strokeRect(item.x, item.y, item.width, item.height);
+                    break;
                 case 'circle':
-                    context.beginPath(); context.arc(item.cx, item.cy, item.radius, 0, 2 * Math.PI); context.stroke(); break;
+                    context.beginPath(); context.arc(item.cx, item.cy, item.radius, 0, 2 * Math.PI);
+                    if (item.fill) context.fill();
+                    else context.stroke();
+                    break;
                 case 'door':
                     context.fillStyle = '#854d0e'; // Door color
                     context.fillRect(item.x - 8, item.y - 20, 16, 40); // 16x40 door
@@ -343,60 +357,67 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
             title: t('confirmGeneration'), message: t('confirmGenerationMessage'),
             onConfirm: () => {
                 const { width, height } = canvasRef.current;
-                const numRooms = { small: 7, medium: 12, large: 20 }[settings.size];
-                const rooms = [];
                 let newDrawings = [];
-                let attempts = 0;
-                
-                // Place first room
-                const firstRoom = { x: width/2 - 50, y: height/2 - 50, w: 100, h: 100 };
-                rooms.push(firstRoom);
-                newDrawings.push({ type: 'rectangle', id: crypto.randomUUID(), color: '#888', strokeWidth: 4, ...firstRoom });
-
-                while (rooms.length < numRooms && attempts < 1000) {
-                    attempts++;
-                    const room = rooms[Math.floor(Math.random() * rooms.length)];
-                    const wall = Math.floor(Math.random() * 4); // 0:N, 1:E, 2:S, 3:W
-                    
-                    const corrLength = 30 + Math.random() * 70;
-                    const corr = { x:0, y:0, w: 20, h: 20 };
-                    
-                    const newRoom = { w: 40 + Math.random() * 80, h: 40 + Math.random() * 80 };
-
-                    if (wall === 0) { // North
-                        corr.x = room.x + room.w/2 - 10; corr.y = room.y - corrLength; corr.h = corrLength;
-                        newRoom.x = corr.x + corr.w/2 - newRoom.w/2; newRoom.y = corr.y - newRoom.h;
-                    } else if (wall === 1) { // East
-                        corr.x = room.x + room.w; corr.y = room.y + room.h/2 - 10; corr.w = corrLength;
-                        newRoom.x = corr.x + corr.w; newRoom.y = corr.y + corr.h/2 - newRoom.h/2;
-                    } else if (wall === 2) { // South
-                        corr.x = room.x + room.w/2 - 10; corr.y = room.y + room.h; corr.h = corrLength;
-                        newRoom.x = corr.x + corr.w/2 - newRoom.w/2; newRoom.y = corr.y + corr.h;
-                    } else { // West
-                        corr.x = room.x - corrLength; corr.y = room.y + room.h/2 - 10; corr.w = corrLength;
-                        newRoom.x = corr.x - newRoom.w; newRoom.y = corr.y + corr.h/2 - newRoom.h/2;
+                const color = '#888';
+    
+                if (settings.type === 'caverns') {
+                    const numCaves = { small: 15, medium: 25, large: 40 }[settings.size];
+                    const caves = [];
+                    for(let i=0; i<numCaves; i++){
+                        const radius = 30 + Math.random() * 60;
+                        const x = Math.random() * (width - radius*2) + radius;
+                        const y = Math.random() * (height - radius*2) + radius;
+                        caves.push({x, y, radius});
                     }
-                    
-                    const allRects = [...rooms.map(r => ({...r, w:r.w+10, h:r.h+10, x:r.x-5, y:r.y-5})), newRoom];
-                    let collision = false;
-                    for (let i = 0; i < allRects.length; i++) {
-                        for (let j = i + 1; j < allRects.length; j++) {
-                            const r1 = allRects[i], r2 = allRects[j];
-                            if (r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y) {
-                                collision = true; break;
+                    for (let i = 0; i < caves.length - 1; i++) {
+                        const c1 = caves[i]; const c2 = caves[i + Math.floor(Math.random() * (caves.length - 1 - i)) + 1];
+                        if (!c2) continue;
+                        const path = [{x: c1.x, y: c1.y}, {x: c2.x, y: c2.y}];
+                        newDrawings.push({ type: 'path', id: crypto.randomUUID(), color, strokeWidth: 40 + Math.random() * 20, points: path });
+                    }
+                    caves.forEach(c => newDrawings.push({ type: 'circle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, cx: c.x, cy: c.y, radius: c.radius }));
+                } else { // classicDungeon or ruins
+                    const numRooms = { small: 7, medium: 12, large: 20 }[settings.size];
+                    const rooms = [];
+                    let attempts = 0;
+                    while (rooms.length < numRooms && attempts < 2000) {
+                        attempts++;
+                        const w = 40 + Math.random() * 100; const h = 40 + Math.random() * 100;
+                        const x = Math.random() * (width - w - 20) + 10; const y = Math.random() * (height - h - 20) + 10;
+                        const newRoom = { x, y, w, h };
+                        let overlapping = false;
+                        for (const room of rooms) {
+                            if (newRoom.x < room.x + room.w + 20 && newRoom.x + newRoom.w > room.x - 20 &&
+                                newRoom.y < room.y + room.h + 20 && newRoom.y + newRoom.h > room.y - 20) {
+                                overlapping = true; break;
                             }
-                        } if (collision) break;
+                        }
+                        if (!overlapping) rooms.push(newRoom);
                     }
+                    rooms.sort((a,b) => (a.x+a.y) - (b.x+b.y));
+                    for (let i = 0; i < rooms.length - 1; i++) {
+                        const r1 = rooms[i]; const r2 = rooms[i+1];
+                        const c1x = r1.x + r1.w/2; const c1y = r1.y + r1.h/2;
+                        const c2x = r2.x + r2.w/2; const c2y = r2.y + r2.h/2;
+                        const path = [{x: c1x, y: c1y}, {x: c1x, y: c2y}, {x: c2x, y: c2y}];
+                        newDrawings.push({ type: 'path', id: crypto.randomUUID(), color, strokeWidth: 15, points: path });
+                    }
+                    rooms.forEach(room => newDrawings.push({ type: 'rectangle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, x: room.x, y: room.y, width: room.w, height: room.h }));
                     
-                    if (!collision && newRoom.x > 10 && newRoom.y > 10 && newRoom.x + newRoom.w < width-10 && newRoom.y + newRoom.h < height - 10) {
-                        rooms.push(newRoom);
-                        newDrawings.push({ type: 'rectangle', id: crypto.randomUUID(), color: '#888', strokeWidth: 4, ...corr });
-                        newDrawings.push({ type: 'rectangle', id: crypto.randomUUID(), color: '#888', strokeWidth: 4, ...newRoom });
+                    if (settings.type === 'ruins') {
+                        const damaged = [];
+                        newDrawings.forEach(d => {
+                            if ((d.type === 'rectangle' && Math.random() < 0.4) || (d.type === 'path' && Math.random() < 0.3)) { // Skip some elements
+                            } else { damaged.push(d); }
+                        });
+                        newDrawings = damaged;
                     }
                 }
-                
-                const newLayers = map.layers.map(l => l.id === activeLayer.id ? { ...l, drawings: newDrawings, tokens: [] } : l);
-                onSave({ ...map, layers: newLayers });
+    
+                if (newDrawings.length > 0) {
+                    const newLayers = map.layers.map(l => l.id === activeLayer.id ? { ...l, drawings: newDrawings, tokens: [] } : l);
+                    onSave({ ...map, layers: newLayers });
+                }
             }
         });
     };
