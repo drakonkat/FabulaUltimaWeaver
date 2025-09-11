@@ -1,8 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
 import { randomizerData } from '../data/randomizerData.js';
+import { fabulaClasses } from '../data/fabulaUltimaData.js';
+import FabulaClassDetails from './FabulaClassDetails.js';
+
 
 const UserPlusIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" },
     React.createElement('path', { d: "M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 10-2 0v2h-2a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2v-2z" })
@@ -33,6 +35,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     const [isRandomizing, setIsRandomizing] = useState(false);
     
     // Form State
+    const [characterType, setCharacterType] = useState('generic');
     const [name, setName] = useState('');
     const [gender, setGender] = useState('');
     const [age, setAge] = useState('');
@@ -45,6 +48,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     const [inventory, setInventory] = useState([]);
 
     const resetForm = () => {
+        setCharacterType('generic');
         setName(''); setGender(''); setAge(''); setRace(''); setHeroClass('');
         setAppearance(''); setBackground(''); setStatus('Healthy');
         setStats([
@@ -62,6 +66,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
 
     useEffect(() => {
         if (editingHero) {
+            setCharacterType(editingHero.characterType || 'generic');
             setName(editingHero.name);
             setGender(editingHero.gender);
             setAge(editingHero.age);
@@ -109,6 +114,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
         const randomRace = rand(races);
         const randomClass = rand(classes);
 
+        setCharacterType('generic');
         setName(`${rand(firstNames)} ${rand(lastNames)}`);
         setGender(rand(genders));
         setAge(String(Math.floor(Math.random() * 43) + 18)); // 18-60
@@ -162,7 +168,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             ];
             
             const { stats, ...restOfTemplate } = template;
-            onAddHero({ ...restOfTemplate, status: 'Healthy', inventory: [], stats: [...defaultHP, ...statsArray] });
+            onAddHero({ ...restOfTemplate, status: 'Healthy', inventory: [], stats: [...defaultHP, ...statsArray], characterType: 'generic' });
         }
         e.target.value = ''; // Reset select
     };
@@ -206,7 +212,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 .filter(i => i.name.trim() !== '')
                 .map(({ id, ...rest }) => rest);
 
-            const heroData = { name, gender, age, race, class: heroClass, appearance, background, status, stats: finalStats, inventory: finalInventory };
+            const heroData = { name, gender, age, race, class: heroClass, appearance, background, status, stats: finalStats, inventory: finalInventory, characterType };
             if (editingHero || (isPlayerView && heroes.length > 0)) {
                 onUpdateHero({ ...(editingHero || heroes[0]), ...heroData });
             } else {
@@ -232,12 +238,24 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 React.createElement(DiceIcon), t('randomizeHero')
             )
         ),
-        React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+        React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-4' },
+            React.createElement('div', { className: 'md:col-span-2' },
+                 React.createElement('label', { htmlFor: 'character-type', className: "block text-sm font-medium text-[var(--accent-primary)] mb-1" }, t('characterType')),
+                 React.createElement('select', { id: 'character-type', value: characterType, onChange: e => setCharacterType(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]" },
+                    React.createElement('option', { value: 'generic' }, t('generic')),
+                    React.createElement('option', { value: 'fabulaUltima' }, t('fabulaUltimaCharacter'))
+                 )
+            ),
             React.createElement('input', { type: "text", placeholder: t('heroNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true }),
             React.createElement('input', { type: "text", placeholder: t('heroGenderPlaceholder'), value: gender, onChange: e => setGender(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
             React.createElement('input', { type: "text", placeholder: t('heroAgePlaceholder'), value: age, onChange: e => setAge(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
             React.createElement('input', { type: "text", placeholder: t('heroRacePlaceholder'), value: race, onChange: e => setRace(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
-            React.createElement('input', { type: "text", placeholder: t('heroClassPlaceholder'), value: heroClass, onChange: e => setHeroClass(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
+            characterType === 'fabulaUltima' ?
+                React.createElement('select', { value: heroClass, onChange: e => setHeroClass(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]" },
+                    React.createElement('option', { value: "" }, t('selectClass')),
+                    fabulaClasses.map(c => React.createElement('option', { key: c.id, value: c.id }, t(c.nameKey)))
+                ) :
+                React.createElement('input', { type: "text", placeholder: t('heroClassPlaceholder'), value: heroClass, onChange: e => setHeroClass(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
             React.createElement('input', { type: "text", placeholder: t('statusPlaceholder'), value: status, onChange: e => setStatus(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true })
         ),
         React.createElement('textarea', { placeholder: t('heroAppearancePlaceholder'), value: appearance, onChange: e => setAppearance(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] h-20 resize-none" }),
@@ -298,13 +316,17 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 return total + (weight * quantity);
             }, 0).toFixed(2);
         }, [hero.inventory]);
+        
+        const className = hero.characterType === 'fabulaUltima' 
+            ? t(fabulaClasses.find(c => c.id === hero.class)?.nameKey || hero.class) 
+            : hero.class;
 
         return React.createElement('div', { className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex flex-col md:flex-row items-start gap-4" },
             React.createElement('div', { className: "flex-grow" },
                 React.createElement('div', { className: "flex justify-between items-start" },
                     React.createElement('div', null,
                         React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, hero.name),
-                        React.createElement('p', { className: "text-sm text-[var(--text-muted)] mt-1" }, `${hero.age}, ${hero.gender} ${hero.race} ${hero.class}`),
+                        React.createElement('p', { className: "text-sm text-[var(--text-muted)] mt-1" }, `${hero.age}, ${hero.gender} ${hero.race} ${className}`),
                         React.createElement('p', { className: "text-sm text-[var(--text-muted)]" }, React.createElement('span', { className: "font-semibold text-[var(--text-secondary)]" }, `${t('status')}:`), ` ${hero.status}`)
                     ),
                     React.createElement('div', { className: "flex-shrink-0 flex gap-2" },
@@ -327,7 +349,8 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 React.createElement('div', { className: "mt-3 border-t border-[var(--border-secondary)] pt-3" },
                     React.createElement('p', { className: "text-[var(--text-secondary)]" }, React.createElement('span', { className: "font-semibold" }, `${t('appearance')}:`), ` ${hero.appearance}`),
                     React.createElement('p', { className: "text-[var(--text-muted)] mt-2 whitespace-pre-wrap" }, hero.background)
-                )
+                ),
+                hero.characterType === 'fabulaUltima' && hero.class && React.createElement(FabulaClassDetails, { className: hero.class })
             )
         );
     };
@@ -350,6 +373,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             )
         ),
         isFormVisible && form,
+        isFormVisible && characterType === 'fabulaUltima' && heroClass && React.createElement(FabulaClassDetails, { className: heroClass }),
         React.createElement('div', { className: "space-y-4" }, !isFormVisible && heroList)
     );
 };
