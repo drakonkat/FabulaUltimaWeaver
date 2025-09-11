@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
@@ -41,21 +43,25 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     const [age, setAge] = useState('');
     const [race, setRace] = useState('');
     const [heroClass, setHeroClass] = useState('');
+    const [classes, setClasses] = useState([{ id: crypto.randomUUID(), classId: '', level: '1' }]);
     const [appearance, setAppearance] = useState('');
     const [background, setBackground] = useState('');
     const [status, setStatus] = useState('Healthy');
     const [stats, setStats] = useState([]);
     const [inventory, setInventory] = useState([]);
+    const [acquiredAbilities, setAcquiredAbilities] = useState({});
 
     const resetForm = () => {
         setCharacterType('generic');
         setName(''); setGender(''); setAge(''); setRace(''); setHeroClass('');
+        setClasses([{ id: crypto.randomUUID(), classId: '', level: '1' }]);
         setAppearance(''); setBackground(''); setStatus('Healthy');
         setStats([
             { id: crypto.randomUUID(), key: t('maxHP'), value: '10' },
             { id: crypto.randomUUID(), key: t('currentHP'), value: '10' },
         ]);
         setInventory([]);
+        setAcquiredAbilities({});
     };
 
     useEffect(() => {
@@ -67,11 +73,23 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     useEffect(() => {
         if (editingHero) {
             setCharacterType(editingHero.characterType || 'generic');
+            if (editingHero.characterType === 'fabulaUltima') {
+                if (editingHero.classes && editingHero.classes.length > 0) {
+                    setClasses(editingHero.classes.map(c => ({ ...c, id: crypto.randomUUID() })));
+                } else if (editingHero.class) { // Backwards compatibility
+                    setClasses([{ id: crypto.randomUUID(), classId: editingHero.class, level: '1' }]);
+                } else {
+                    setClasses([{ id: crypto.randomUUID(), classId: '', level: '1' }]);
+                }
+                setHeroClass('');
+            } else {
+                setHeroClass(editingHero.class);
+                setClasses([{ id: crypto.randomUUID(), classId: '', level: '1' }]);
+            }
             setName(editingHero.name);
             setGender(editingHero.gender);
             setAge(editingHero.age);
             setRace(editingHero.race);
-            setHeroClass(editingHero.class);
             setAppearance(editingHero.appearance);
             setBackground(editingHero.background);
             setStatus(editingHero.status);
@@ -89,6 +107,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 initialInventory = editingHero.inventory;
             }
             setInventory(initialInventory.map(item => ({...item, id: crypto.randomUUID() })));
+            setAcquiredAbilities(editingHero.acquiredAbilities || {});
 
             setIsFormVisible(true);
         } else {
@@ -135,6 +154,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             ...randomStats,
         ]);
         setInventory([]);
+        setAcquiredAbilities({});
 
         setBackground(t('generatingBackground'));
         const generatedBg = await onGenerateBackground(randomRace, randomClass);
@@ -200,6 +220,60 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             )
         );
     };
+    
+    const handleAddClass = () => {
+        if (classes.length < 3) {
+            setClasses(prev => [...prev, { id: crypto.randomUUID(), classId: '', level: '1' }]);
+        }
+    };
+    
+    const handleRemoveClass = (id) => {
+        if (classes.length > 1) {
+            setClasses(prev => prev.filter(c => c.id !== id));
+        }
+    };
+    
+    const handleClassChange = (id, field, value) => {
+        setClasses(current =>
+            current.map(c => c.id === id ? { ...c, [field]: value } : c)
+        );
+    };
+    
+    const handleAbilityChange = (hero, classId, abilityId, count) => {
+        const newAcquiredAbilities = JSON.parse(JSON.stringify(hero.acquiredAbilities || {}));
+        
+        if (!newAcquiredAbilities[classId]) {
+            newAcquiredAbilities[classId] = {};
+        }
+
+        if (count > 0) {
+            newAcquiredAbilities[classId][abilityId] = count;
+        } else {
+            delete newAcquiredAbilities[classId][abilityId];
+            if (Object.keys(newAcquiredAbilities[classId]).length === 0) {
+                delete newAcquiredAbilities[classId];
+            }
+        }
+        onUpdateHero({ ...hero, acquiredAbilities: newAcquiredAbilities });
+    };
+
+    const handleAbilityChangeInForm = (classId, abilityId, count) => {
+        setAcquiredAbilities(prev => {
+            const newAbilities = JSON.parse(JSON.stringify(prev));
+            if (!newAbilities[classId]) {
+                newAbilities[classId] = {};
+            }
+            if (count > 0) {
+                newAbilities[classId][abilityId] = count;
+            } else {
+                delete newAbilities[classId][abilityId];
+                if (Object.keys(newAbilities[classId]).length === 0) {
+                    delete newAbilities[classId];
+                }
+            }
+            return newAbilities;
+        });
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -212,7 +286,18 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 .filter(i => i.name.trim() !== '')
                 .map(({ id, ...rest }) => rest);
 
-            const heroData = { name, gender, age, race, class: heroClass, appearance, background, status, stats: finalStats, inventory: finalInventory, characterType };
+            const heroData = { name, gender, age, race, appearance, background, status, stats: finalStats, inventory: finalInventory, characterType, acquiredAbilities };
+            
+            if (characterType === 'fabulaUltima') {
+                heroData.classes = classes
+                    .filter(c => c.classId)
+                    .map(({ id, ...rest }) => ({...rest, level: parseInt(rest.level, 10) || 1}));
+                delete heroData.class;
+            } else {
+                heroData.class = heroClass;
+                delete heroData.classes;
+            }
+            
             if (editingHero || (isPlayerView && heroes.length > 0)) {
                 onUpdateHero({ ...(editingHero || heroes[0]), ...heroData });
             } else {
@@ -251,9 +336,39 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             React.createElement('input', { type: "text", placeholder: t('heroAgePlaceholder'), value: age, onChange: e => setAge(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
             React.createElement('input', { type: "text", placeholder: t('heroRacePlaceholder'), value: race, onChange: e => setRace(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
             characterType === 'fabulaUltima' ?
-                React.createElement('select', { value: heroClass, onChange: e => setHeroClass(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]" },
-                    React.createElement('option', { value: "" }, t('selectClass')),
-                    fabulaClasses.map(c => React.createElement('option', { key: c.id, value: c.id }, t(c.nameKey)))
+                React.createElement('div', { className: 'md:col-span-2 space-y-2' },
+                    React.createElement('label', { className: "block text-sm font-medium text-[var(--accent-primary)] mb-1" }, t('fabulaUltimaClass')),
+                    classes.map((c, index) => React.createElement('div', { key: c.id, className: "grid grid-cols-[1fr_80px_auto] items-center gap-2" },
+                        React.createElement('select', { 
+                            value: c.classId, 
+                            onChange: e => handleClassChange(c.id, 'classId', e.target.value),
+                            className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]"
+                        },
+                            React.createElement('option', { value: "" }, t('selectClass')),
+                            fabulaClasses.map(fc => React.createElement('option', { key: fc.id, value: fc.id }, t(fc.nameKey)))
+                        ),
+                        React.createElement('input', { 
+                            type: "number", 
+                            placeholder: t('level'),
+                            'aria-label': t('level'),
+                            value: c.level, 
+                            onChange: e => handleClassChange(c.id, 'level', e.target.value),
+                            min: "1",
+                            className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-center"
+                        }),
+                        React.createElement('button', { 
+                            type: "button", 
+                            onClick: () => handleRemoveClass(c.id), 
+                            disabled: classes.length <= 1,
+                            'aria-label': "Remove Class",
+                            className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                        }, React.createElement(TrashIcon, null))
+                    )),
+                    classes.length < 3 && React.createElement('button', {
+                        type: "button",
+                        onClick: handleAddClass,
+                        className: "flex items-center justify-center w-full px-4 py-2 mt-2 text-sm rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)]"
+                    }, React.createElement(PlusIcon, null), t('addClass'))
                 ) :
                 React.createElement('input', { type: "text", placeholder: t('heroClassPlaceholder'), value: heroClass, onChange: e => setHeroClass(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]" }),
             React.createElement('input', { type: "text", placeholder: t('statusPlaceholder'), value: status, onChange: e => setStatus(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true })
@@ -317,16 +432,20 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             }, 0).toFixed(2);
         }, [hero.inventory]);
         
-        const className = hero.characterType === 'fabulaUltima' 
-            ? t(fabulaClasses.find(c => c.id === hero.class)?.nameKey || hero.class) 
-            : hero.class;
+        let classDisplay = hero.class;
+        if (hero.characterType === 'fabulaUltima' && hero.classes && hero.classes.length > 0) {
+            classDisplay = hero.classes.map(c => {
+                const className = t(fabulaClasses.find(fc => fc.id === c.classId)?.nameKey || c.classId);
+                return `${className} ${c.level || ''}`.trim();
+            }).join(' / ');
+        }
 
         return React.createElement('div', { className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex flex-col md:flex-row items-start gap-4" },
             React.createElement('div', { className: "flex-grow" },
                 React.createElement('div', { className: "flex justify-between items-start" },
                     React.createElement('div', null,
                         React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, hero.name),
-                        React.createElement('p', { className: "text-sm text-[var(--text-muted)] mt-1" }, `${hero.age}, ${hero.gender} ${hero.race} ${className}`),
+                        React.createElement('p', { className: "text-sm text-[var(--text-muted)] mt-1" }, `${hero.age}, ${hero.gender} ${hero.race} ${classDisplay}`),
                         React.createElement('p', { className: "text-sm text-[var(--text-muted)]" }, React.createElement('span', { className: "font-semibold text-[var(--text-secondary)]" }, `${t('status')}:`), ` ${hero.status}`)
                     ),
                     React.createElement('div', { className: "flex-shrink-0 flex gap-2" },
@@ -350,7 +469,15 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                     React.createElement('p', { className: "text-[var(--text-secondary)]" }, React.createElement('span', { className: "font-semibold" }, `${t('appearance')}:`), ` ${hero.appearance}`),
                     React.createElement('p', { className: "text-[var(--text-muted)] mt-2 whitespace-pre-wrap" }, hero.background)
                 ),
-                hero.characterType === 'fabulaUltima' && hero.class && React.createElement(FabulaClassDetails, { className: hero.class })
+                hero.characterType === 'fabulaUltima' && hero.classes && hero.classes.map(c => c.classId && 
+                    React.createElement(FabulaClassDetails, {
+                        key: c.classId,
+                        className: c.classId,
+                        acquiredAbilities: hero.acquiredAbilities?.[c.classId] || {},
+                        onAbilityChange: (abilityId, count) => handleAbilityChange(hero, c.classId, abilityId, count),
+                        defaultExpanded: true
+                    })
+                )
             )
         );
     };
@@ -373,7 +500,13 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             )
         ),
         isFormVisible && form,
-        isFormVisible && characterType === 'fabulaUltima' && heroClass && React.createElement(FabulaClassDetails, { className: heroClass }),
+        isFormVisible && characterType === 'fabulaUltima' && classes.map(c => c.classId && React.createElement(FabulaClassDetails, { 
+            key: c.id, 
+            className: c.classId, 
+            defaultExpanded: true,
+            acquiredAbilities: acquiredAbilities[c.classId] || {},
+            onAbilityChange: (abilityId, count) => handleAbilityChangeInForm(c.classId, abilityId, count)
+        })),
         React.createElement('div', { className: "space-y-4" }, !isFormVisible && heroList)
     );
 };

@@ -63,6 +63,10 @@ export const translations = {
     fabulaUltimaCharacter: 'Fabula Ultima',
     fabulaUltimaClass: 'Fabula Ultima Class',
     selectClass: 'Select a Class',
+    level: 'Level',
+    addClass: 'Add Class',
+    acquire: 'Acquire',
+    acquired: 'Acquired',
     // Fabula Ultima Classes
     arcanist: 'Arcanist',
     artificer: 'Artificer',
@@ -447,6 +451,10 @@ export const translations = {
     fabulaUltimaCharacter: 'Fabula Ultima',
     fabulaUltimaClass: 'Classe Fabula Ultima',
     selectClass: 'Seleziona una Classe',
+    level: 'Livello',
+    addClass: 'Aggiungi Classe',
+    acquire: 'Acquisisci',
+    acquired: 'Acquisita',
     // Fabula Ultima Classes
     arcanist: 'Arcanista',
     artificer: 'Artefice',
@@ -676,7 +684,7 @@ export const translations = {
     updateNote: 'Aggiorna Nota',
     rewriteWithAI: 'Riscrivi con AI',
     rewriting: 'Riscrivendo...',
-    limitGames: 'Limite partite raggiunto. Elimina una partita per crearne una nuova.',
+    limitGames: 'Limite partite raggiunto. Elimina una partita per creare una nuova.',
     // Battle Maps
     battleMaps: 'Mappe Tattiche',
     newMap: 'Nuova Mappa',
