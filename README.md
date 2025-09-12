@@ -1,7 +1,7 @@
 
-# Fabula Ultima Weaver — AI Assistant for Game Masters (D&D, Fabula Ultima, and more)
+# The GM's Codex — AI Assistant for Game Masters (D&D, Fabula Ultima, and more)
 
-Fabula Ultima Weaver is a simple, friendly AI tool that helps Game Masters (GDR/TTRPG) plan and run sessions across different systems.
+The GM's Codex is a simple, friendly AI tool that helps Game Masters (GDR/TTRPG) plan and run sessions across different systems.
 It works great with Fabula Ultima and Dungeons & Dragons, and it can adapt to generic fantasy settings too.
 
 What it does for you:
@@ -54,7 +54,7 @@ If you want Google Sign‑In, set your client ID in .env.local:
 
 ## Deploy (GitHub Pages)
 This repo includes a GitHub Actions workflow that publishes the dist folder to GitHub Pages on pushes to main.
-- Base path is configured as /FabulaUltimaWeaver/ in vite.config.ts.
+- Base path is configured as /the-gms-codex/ in vite.config.ts.
 - The workflow expects a repository secret called GEMINI_API_KEY.
 
 ## Supported systems (examples)

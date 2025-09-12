@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 
@@ -36,7 +37,7 @@ const BackupManager = ({ appState, onLoad }) => {
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.download = `adventure_weaver_backup.json`;
+        a.download = `the_gms_codex_backup.json`;
         a.href = url;
         document.body.appendChild(a);
         a.click();

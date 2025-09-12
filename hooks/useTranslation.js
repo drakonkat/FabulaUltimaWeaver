@@ -6,7 +6,7 @@ const LanguageContext = createContext(undefined);
 export const LanguageProvider = ({ children }) => {
     const [language, setLanguageState] = useState(() => {
         try {
-            return localStorage.getItem('adventureWeaverLanguage') || 'en';
+            return localStorage.getItem('gmsCodexLanguage') || 'en';
         } catch (e) {
             console.error("Could not read language from localStorage", e);
             return 'en';
@@ -15,7 +15,7 @@ export const LanguageProvider = ({ children }) => {
 
     const setLanguage = (newLanguage) => {
         try {
-            localStorage.setItem('adventureWeaverLanguage', newLanguage);
+            localStorage.setItem('gmsCodexLanguage', newLanguage);
         } catch (e) {
             console.error("Could not save language to localStorage", e);
         }

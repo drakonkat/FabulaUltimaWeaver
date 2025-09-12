@@ -574,7 +574,7 @@ const AppContent = () => {
   
   const [theme, setThemeState] = useState(() => {
     try {
-        return localStorage.getItem('adventureWeaverTheme') || 'dark';
+        return localStorage.getItem('gmsCodexTheme') || 'dark';
     } catch (e) {
         return 'dark';
     }
@@ -582,7 +582,7 @@ const AppContent = () => {
 
   const setTheme = (newTheme) => {
     try {
-        localStorage.setItem('adventureWeaverTheme', newTheme);
+        localStorage.setItem('gmsCodexTheme', newTheme);
     } catch (e) {
         console.error("Failed to save theme to localStorage", e);
     }
@@ -635,9 +635,9 @@ const AppContent = () => {
   useEffect(() => {
     let storageKey = null;
     if (isAnonymousMode) {
-        storageKey = 'storyWeaverState_anonymous';
+        storageKey = 'gmsCodexState_anonymous';
     } else if (user) {
-        storageKey = `storyWeaverState_${user.sub}`;
+        storageKey = `gmsCodexState_${user.sub}`;
     }
 
     if (!storageKey) return;
@@ -708,9 +708,9 @@ const AppContent = () => {
   useEffect(() => {
     let storageKey = null;
     if (isAnonymousMode) {
-        storageKey = 'storyWeaverState_anonymous';
+        storageKey = 'gmsCodexState_anonymous';
     } else if (user) {
-        storageKey = `storyWeaverState_${user.sub}`;
+        storageKey = `gmsCodexState_${user.sub}`;
     }
     
     if (storageKey) {

@@ -13,7 +13,7 @@ const Footer = () => {
         React.createElement('span', { className: "select-none" }, "|"),
         React.createElement('a', { href: "#", className: "hover:text-[var(--accent-primary)] transition-colors" }, t('termsAndConditions'))
       ),
-      React.createElement('p', null, `© ${new Date().getFullYear()} Adventure Weaver. All rights reserved.`)
+      React.createElement('p', null, `© ${new Date().getFullYear()} The GM's Codex. All rights reserved.`)
     )
   );
 };

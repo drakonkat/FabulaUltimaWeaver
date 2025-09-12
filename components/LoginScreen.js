@@ -33,7 +33,7 @@ const LoginScreen = () => {
                         className: "text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] tracking-wider", 
                         style: { fontFamily: 'serif' } 
                     }, 
-                    "Adventure Weaver"
+                    t('appName')
                 ),
                 React.createElement(SwordIcon, null)
             ),

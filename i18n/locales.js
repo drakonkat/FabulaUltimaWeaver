@@ -1,6 +1,7 @@
 
 export const translations = {
   en: {
+    appName: "The GM's Codex",
     // Header & Language
     language: 'Language',
     backToCampaigns: 'Back to Campaigns',
@@ -400,7 +401,7 @@ export const translations = {
     // Onboarding
     startTutorial: 'Help / Tutorial',
     onboarding: 'Onboarding',
-    onboardingWelcomeTitle: "Welcome to Adventure Weaver!",
+    onboardingWelcomeTitle: "Welcome to The GM's Codex!",
     onboardingWelcomeText: "This quick tutorial will guide you through the main features. Let's get you started on creating epic stories.",
     onboardingModesTitle: "Two Modes: GM and Player",
     onboardingModesText: "Use the switcher to toggle between **Game Master** and **Player** mode. As a GM, you'll create and manage adventures. As a Player, you'll manage your character and personal notes for a game.",
@@ -426,6 +427,7 @@ export const translations = {
     termsAndConditions: 'Terms & Conditions',
   },
   it: {
+    appName: "Il Codice del Master",
     // Header & Language
     language: 'Lingua',
     backToCampaigns: 'Torna alle Campagne',
@@ -825,7 +827,7 @@ export const translations = {
     // Onboarding
     startTutorial: 'Aiuto / Tutorial',
     onboarding: 'Onboarding',
-    onboardingWelcomeTitle: "Benvenuto in Adventure Weaver!",
+    onboardingWelcomeTitle: "Benvenuto ne Il Codice del Master!",
     onboardingWelcomeText: "Questo rapido tutorial ti guiderà attraverso le funzionalità principali. Iniziamo a creare storie epiche.",
     onboardingModesTitle: "Due Modalità: GM e Giocatore",
     onboardingModesText: "Usa il selettore per passare dalla modalità **Game Master** a quella **Giocatore**. Come GM, creerai e gestirai le avventure. Come Giocatore, gestirai il tuo personaggio e le note personali.",
