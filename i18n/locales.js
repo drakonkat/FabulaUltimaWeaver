@@ -69,6 +69,7 @@ export const translations = {
     acquire: 'Acquire',
     acquired: 'Acquired',
     downloadPdf: 'Download PDF',
+    previewPdf: 'Preview PDF',
     generatingPdf: 'Generating PDF...',
     // Fabula Ultima Specific
     fabulaAttributes: 'Fabula Ultima Attributes',
@@ -538,6 +539,7 @@ export const translations = {
     acquire: 'Acquisisci',
     acquired: 'Acquisita',
     downloadPdf: 'Scarica PDF',
+    previewPdf: 'Anteprima PDF',
     generatingPdf: 'Generando il PDF...',
     // Fabula Ultima Specific
     fabulaAttributes: 'Caratteristiche Fabula Ultima',

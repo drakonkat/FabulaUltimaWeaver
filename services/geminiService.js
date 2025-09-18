@@ -525,10 +525,10 @@ export const generateFabulaUltimaSheet = async (hero, language) => {
         return translation;
     };
 
-    const url = '/resources/Fabula-Ultima-Scheda-del-Personaggio.pdf';
+    const url = `resources/Fabula-Ultima-Scheda-del-Personaggio.pdf`;
     const existingPdfBytes = await fetch(url).then(res => {
         if (!res.ok) {
-            throw new Error(`Could not fetch PDF template at ${url}. Please ensure 'Fabula-Ultima-Scheda-del-Personaggio.pdf' is in the root directory of the application. Status: ${res.status}`);
+            throw new Error(`Could not fetch PDF template at ${url}. Please ensure 'Fabula-Ultima-Scheda-del-Personaggio.pdf' is in the public/resources directory of the application. Status: ${res.status}`);
         }
         return res.arrayBuffer();
     });
