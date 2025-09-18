@@ -1,10 +1,13 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
 import { randomizerData } from '../data/randomizerData.js';
 import { fabulaClasses } from '../data/fabulaUltimaData.js';
 import FabulaClassDetails from './FabulaClassDetails.js';
+import FabulaGuidedCreation from './FabulaGuidedCreation.js';
+import { generateFabulaUltimaSheet } from '../services/geminiService.js';
 
 
 const UserPlusIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" },
@@ -29,8 +32,9 @@ const DiceIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/20
 
 
 const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem, isPlayerView, onRewrite, onGenerateBackground }) => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const [isFormVisible, setIsFormVisible] = useState(false);
+    const [isGuidedCreationOpen, setIsGuidedCreationOpen] = useState(false);
     const [editingHero, setEditingHero] = useState(null);
     const [isRewriting, setIsRewriting] = useState(false);
     const [isRandomizing, setIsRandomizing] = useState(false);
@@ -60,6 +64,12 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     const [bonds, setBonds] = useState([]);
     const [statuses, setStatuses] = useState({ poisoned: false, confused: false, weak: false, enraged: false, slow: false, shaken: false });
 
+    const getText = (field) => {
+        if (typeof field === 'object' && field !== null && field.en) {
+            return field[language] || field.en;
+        }
+        return field;
+    };
 
     const resetForm = () => {
         setCharacterType('generic');
@@ -200,18 +210,37 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     const handleAddFromTemplate = (e) => {
         const templateName = e.target.value;
         if (!templateName) return;
-
+    
         const template = heroTemplates.find(t => t.name === templateName);
         if (template) {
-            const systemStatsObj = gameSystem === 'D&D' ? template.stats.dd : template.stats.fu;
-            const statsArray = Object.entries(systemStatsObj).map(([key, value]) => ({ key, value: String(value) }));
-            const defaultHP = [
-                { key: t('maxHP'), value: '10' },
-                { key: t('currentHP'), value: '10' },
-            ];
-            
-            const { stats, ...restOfTemplate } = template;
-            onAddHero({ ...restOfTemplate, status: 'Healthy', inventory: [], stats: [...defaultHP, ...statsArray], characterType: 'generic' });
+            if (template.characterType === 'fabulaUltima') {
+                const { stats, ...restOfTemplate } = template;
+                const translatedInventory = (template.inventory || []).map(item => ({...item, name: getText(item.name)}));
+                const newHero = {
+                    ...restOfTemplate,
+                    status: 'Healthy',
+                    inventory: translatedInventory,
+                    currentHp: 0,
+                    currentMp: 0,
+                    currentIp: 6,
+                    fabulaPoints: 3,
+                    zenit: 0,
+                    bonds: [],
+                    statuses: { poisoned: false, confused: false, weak: false, enraged: false, slow: false, shaken: false },
+                    stats: [],
+                };
+                onAddHero(newHero);
+            } else {
+                const systemStatsObj = gameSystem === 'D&D' ? template.stats.dd : template.stats.fu;
+                const statsArray = Object.entries(systemStatsObj).map(([key, value]) => ({ key, value: String(value) }));
+                const defaultHP = [
+                    { key: t('maxHP'), value: '10' },
+                    { key: t('currentHP'), value: '10' },
+                ];
+                
+                const { stats, ...restOfTemplate } = template;
+                onAddHero({ ...restOfTemplate, status: 'Healthy', inventory: [], stats: [...defaultHP, ...statsArray], characterType: 'generic' });
+            }
         }
         e.target.value = ''; // Reset select
     };
@@ -263,20 +292,28 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     };
     
     const handleAbilityChange = (hero, classId, abilityId, count) => {
-        const newAcquiredAbilities = JSON.parse(JSON.stringify(hero.acquiredAbilities || {}));
+        const classLevel = hero.classes?.find(c => c.classId === classId)?.level || 0;
         
-        if (!newAcquiredAbilities[classId]) {
-            newAcquiredAbilities[classId] = {};
+        const currentClassAbilities = hero.acquiredAbilities?.[classId] || {};
+        const newClassAbilities = { ...currentClassAbilities };
+        if (count > 0) {
+            newClassAbilities[abilityId] = count;
+        } else {
+            delete newClassAbilities[abilityId];
         }
 
-        if (count > 0) {
-            newAcquiredAbilities[classId][abilityId] = count;
-        } else {
-            delete newAcquiredAbilities[classId][abilityId];
-            if (Object.keys(newAcquiredAbilities[classId]).length === 0) {
-                delete newAcquiredAbilities[classId];
-            }
+        const totalSpent = Object.values(newClassAbilities).reduce((a, b) => a + b, 0);
+
+        if (totalSpent > classLevel) {
+            return; // Silently fail if trying to acquire more abilities than the level allows
         }
+        
+        const newAcquiredAbilities = { ...(hero.acquiredAbilities || {}), [classId]: newClassAbilities };
+
+        if (Object.keys(newClassAbilities).length === 0) {
+            delete newAcquiredAbilities[classId];
+        }
+        
         onUpdateHero({ ...hero, acquiredAbilities: newAcquiredAbilities });
     };
 
@@ -363,7 +400,10 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
         e.preventDefault();
         
         const finalInventory = inventory
-            .filter(i => i.name.trim() !== '')
+            .filter(i => {
+                const name = getText(i.name);
+                return name.trim() !== '';
+            })
             .map(({ id, ...rest }) => rest);
         
         const finalStats = stats
@@ -423,6 +463,16 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                     React.createElement('option', { value: 'fabulaUltima' }, t('fabulaUltimaCharacter'))
                  )
             ),
+             characterType === 'fabulaUltima' && !editingHero && React.createElement('div', { className: 'md:col-span-2' },
+                React.createElement('button', {
+                    type: 'button',
+                    onClick: () => {
+                        setIsFormVisible(false);
+                        setIsGuidedCreationOpen(true);
+                    },
+                    className: "w-full flex items-center justify-center px-4 py-2 rounded-lg bg-[var(--accent-secondary)] hover:bg-[var(--accent-tertiary)] text-white transition-colors"
+                }, t('startGuidedCreation'))
+             ),
             React.createElement('input', { type: "text", placeholder: t('heroNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]", required: true }),
             React.createElement('input', { type: "text", placeholder: t('heroGenderPlaceholder'), value: gender, onChange: e => setGender(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]" }),
             React.createElement('input', { type: "text", placeholder: t('heroAgePlaceholder'), value: age, onChange: e => setAge(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)]" }),
@@ -525,7 +575,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                         ),
                         React.createElement('div', { className: "space-y-2 max-h-48 overflow-y-auto pr-2" },
                             inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-[1fr_80px_100px_auto] items-center gap-2" },
-                                React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: item.name, onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
+                                React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: getText(item.name), onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                                 React.createElement('input', { type: "text", placeholder: t('quantityPlaceholder'), value: item.quantity, onChange: e => handleItemChange(item.id, 'quantity', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                                 React.createElement('input', { type: "text", placeholder: t('weightPlaceholder'), value: item.weight, onChange: e => handleItemChange(item.id, 'weight', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                                 React.createElement('button', { type: "button", onClick: () => handleRemoveItem(item.id), 'aria-label': "Remove Item", className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full" }, React.createElement(TrashIcon, null))
@@ -557,7 +607,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
                     React.createElement('div', { className: 'flex justify-between items-center mb-2' },
                         React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('bonds')),
-                        React.createElement('button', { type: 'button', onClick: handleAddBond, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white" }, React.createElement(PlusIcon), t('addBond'))
+                        React.createElement('button', { type: 'button', onClick: handleAddBond, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white" }, React.createElement(PlusIcon, null), t('addBond'))
                     ),
                     React.createElement('div', { className: "space-y-3" }, bonds.map(bond => React.createElement('div', { key: bond.id, className: 'p-3 bg-[var(--bg-secondary)] rounded-lg' },
                         React.createElement('div', { className: 'flex items-center gap-2' },
@@ -597,7 +647,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                     ),
                     React.createElement('div', { className: "space-y-2 max-h-48 overflow-y-auto pr-2" },
                         inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-[1fr_80px_100px_auto] items-center gap-2" },
-                            React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: item.name, onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
+                            React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: getText(item.name), onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                             React.createElement('input', { type: "text", placeholder: t('quantityPlaceholder'), value: item.quantity, onChange: e => handleItemChange(item.id, 'quantity', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                             React.createElement('input', { type: "text", placeholder: t('weightPlaceholder'), value: item.weight, onChange: e => handleItemChange(item.id, 'weight', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                             React.createElement('button', { type: "button", onClick: () => handleRemoveItem(item.id), 'aria-label': "Remove Item", className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full" }, React.createElement(TrashIcon, null))
@@ -613,6 +663,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     );
 
     const HeroCard = ({ hero }) => {
+        const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
         const totalWeight = useMemo(() => {
             if (!hero.inventory) return '0.00';
             return hero.inventory.reduce((total, item) => {
@@ -627,6 +678,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
         const heroCalculatedStats = useMemo(() => {
             if (hero.characterType !== 'fabulaUltima') return {};
             const { fabulaAttributes: attrs } = hero;
+            if (!attrs) return {};
             const mig = attrs ? dieValue(attrs.mig) : 6;
             const wlp = attrs ? dieValue(attrs.wlp) : 6;
             const maxHp = totalLevel + (mig * 5);
@@ -646,6 +698,28 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 return `${className} ${c.level || ''}`.trim();
             }).join(' / ');
         }
+        
+        const handleDownloadPdf = async () => {
+            if (isGeneratingPdf) return;
+            setIsGeneratingPdf(true);
+            try {
+                const pdfBytes = await generateFabulaUltimaSheet(hero, language);
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${hero.name.replace(/ /g, '_')}_fabula_ultima.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error("Error generating PDF:", error);
+                alert("Failed to generate PDF. Check console for details.");
+            } finally {
+                setIsGeneratingPdf(false);
+            }
+        };
 
         return React.createElement('div', { className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex flex-col items-start gap-4" },
             React.createElement('div', { className: "w-full flex-grow" },
@@ -655,7 +729,13 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                         React.createElement('p', { className: "text-sm text-[var(--text-muted)] mt-1" }, `${hero.age}, ${hero.gender} ${hero.race} ${classDisplay} (Lvl ${totalLevel})`),
                         React.createElement('p', { className: "text-sm text-[var(--text-muted)]" }, React.createElement('span', { className: "font-semibold text-[var(--text-secondary)]" }, `${t('status')}:`), ` ${hero.status}`)
                     ),
-                    React.createElement('div', { className: "flex-shrink-0 flex gap-2" },
+                    React.createElement('div', { className: "flex-shrink-0 flex gap-2 items-center" },
+                        hero.characterType === 'fabulaUltima' && React.createElement('button', {
+                            onClick: handleDownloadPdf,
+                            disabled: isGeneratingPdf,
+                            className: 'flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-secondary)] hover:bg-[var(--accent-tertiary)] text-white disabled:opacity-50',
+                            title: t('downloadPdf')
+                        }, isGeneratingPdf ? t('generatingPdf') : t('downloadPdf')),
                         React.createElement('button', { onClick: () => setEditingHero(hero), className: "p-2 text-blue-400 hover:text-blue-300", 'aria-label': `${t('edit')} ${hero.name}` }, React.createElement(PencilIcon, null)),
                         React.createElement('button', { onClick: () => onRemoveHero(hero.id), className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)]", 'aria-label': `${t('remove')} ${hero.name}` }, React.createElement(TrashIcon, null))
                     )
@@ -664,7 +744,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 hero.characterType === 'fabulaUltima' ? (
                      React.createElement('div', {className: 'mt-4 space-y-4'},
                         React.createElement('div', { className: "grid grid-cols-2 md:grid-cols-4 gap-2 text-center p-2 bg-[var(--bg-secondary)] rounded-md"},
-                            Object.entries({ dex: 'dexterity', ins: 'insight', mig: 'might', wlp: 'willpower' }).map(([key, label]) => React.createElement('div', {key}, React.createElement('div', {className:'text-xs text-[var(--text-muted)]'}, t(label)), React.createElement('div', {className:'font-bold text-lg text-[var(--text-primary)]'}, hero.fabulaAttributes[key])))
+                            Object.entries({ dex: 'dexterity', ins: 'insight', mig: 'might', wlp: 'willpower' }).map(([key, label]) => React.createElement('div', {key}, React.createElement('div', {className:'text-sm text-[var(--text-muted)]'}, t(label)), React.createElement('div', {className:'font-bold text-lg text-[var(--text-primary)]'}, hero.fabulaAttributes[key])))
                         ),
                         React.createElement('div', { className: "flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-[var(--text-secondary)]" },
                             hero.stats && hero.stats.map(stat =>
@@ -701,7 +781,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 hero.inventory && hero.inventory.length > 0 && React.createElement('div', { className: "mt-3 border-t border-[var(--border-secondary)] pt-3" },
                     React.createElement('h4', { className: 'font-semibold text-sm text-[var(--text-secondary)]' }, t('inventory')),
                     React.createElement('ul', { className: 'list-disc list-inside text-sm text-[var(--text-muted)]' },
-                        hero.inventory.map((item, index) => React.createElement('li', { key: index }, `${item.name} (x${item.quantity})`))
+                        hero.inventory.map((item, index) => React.createElement('li', { key: index }, `${getText(item.name)} (x${item.quantity})`))
                     ),
                     React.createElement('p', { className: 'text-sm font-bold text-[var(--text-secondary)] mt-1' }, `${t('totalWeight')}: ${totalWeight}`)
                 ),
@@ -715,6 +795,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                         className: c.classId,
                         acquiredAbilities: hero.acquiredAbilities?.[c.classId] || {},
                         onAbilityChange: (abilityId, count) => handleAbilityChange(hero, c.classId, abilityId, count),
+                        classLevel: c.level
                     })
                 )
             )
@@ -726,6 +807,16 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
         heroes.map(hero => React.createElement(HeroCard, { key: hero.id, hero: hero }));
 
     return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
+        isGuidedCreationOpen && React.createElement(FabulaGuidedCreation, {
+            onClose: () => {
+                setIsGuidedCreationOpen(false);
+                setIsFormVisible(false);
+            },
+            onFinish: (heroData) => {
+                onAddHero(heroData);
+                setIsGuidedCreationOpen(false);
+            },
+        }),
         React.createElement('div', { className: "flex flex-wrap gap-4 justify-between items-center mb-4" },
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, isPlayerView ? t('myHero') : t('partyRoster')),
             !isPlayerView && React.createElement('div', { className: "flex gap-2" },
@@ -744,7 +835,8 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             className: c.classId, 
             defaultExpanded: true,
             acquiredAbilities: acquiredAbilities[c.classId] || {},
-            onAbilityChange: (abilityId, count) => handleAbilityChangeInForm(c.classId, abilityId, count)
+            onAbilityChange: (abilityId, count) => handleAbilityChangeInForm(c.classId, abilityId, count),
+            classLevel: parseInt(c.level, 10) || 0,
         })),
         React.createElement('div', { className: "space-y-4" }, !isFormVisible && heroList)
     );

@@ -1,4 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { fabulaClasses, fabulaClassDetails } from '../data/fabulaUltimaData.js';
+import { translations } from '../i18n/locales.js';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -488,4 +491,258 @@ export const generateOneShotAdventure = async (params, language) => {
         console.error("Failed to parse JSON response for one-shot adventure:", response.text);
         throw new Error("The AI returned an invalid response. Please try again.");
     }
+};
+
+const wrapText = (text, width, font, fontSize) => {
+    if (!text) return '';
+    const words = text.split(' ');
+    let lines = [];
+    let currentLine = words[0] || '';
+
+    for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const widthOfLineWithWord = font.widthOfTextAtSize(`${currentLine} ${word}`, fontSize);
+        if (widthOfLineWithWord < width) {
+            currentLine += ` ${word}`;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    lines.push(currentLine);
+    return lines.join('\n');
+};
+
+export const generateFabulaUltimaSheet = async (hero, language) => {
+    const t = (key, replacements) => {
+        const lang_map = translations[language] || translations['en'];
+        let translation = lang_map[key] || key;
+        if (replacements) {
+            for (const placeholder in replacements) {
+                translation = translation.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), replacements[placeholder]);
+            }
+        }
+        return translation;
+    };
+
+    const url = '/resources/Fabula-Ultima-Scheda-del-Personaggio.pdf';
+    const existingPdfBytes = await fetch(url).then(res => {
+        if (!res.ok) {
+            throw new Error(`Could not fetch PDF template at ${url}. Please ensure 'Fabula-Ultima-Scheda-del-Personaggio.pdf' is in the root directory of the application. Status: ${res.status}`);
+        }
+        return res.arrayBuffer();
+    });
+
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+    const form = pdfDoc.getForm();
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    
+    console.log("%cCampi Disponibili nel Modulo PDF:", "color: #A78BFA; font-weight: bold; font-size: 1.1em;");
+    const fields = form.getFields();
+    const fieldTableData = fields.map(field => ({
+        'Nome Campo PDF': field.getName(),
+        'Tipo Campo': field.constructor.name,
+    }));
+    console.table(fieldTableData);
+    
+    const setTextField = (name, value, { size, wrap = false } = {}) => {
+        const textValue = String(value || '');
+        try {
+            const field = form.getTextField(name);
+            let textToSet = textValue;
+            const effectiveSize = size || 10;
+            
+            if (wrap) {
+                const fieldWidth = field.acroField.getWidgets()[0].getRectangle().width;
+                const padding = 5; // A small padding to prevent text touching the edges
+                textToSet = wrapText(textValue, fieldWidth - padding, helveticaFont, effectiveSize);
+                field.enableMultiline();
+            }
+
+            field.setText(textToSet);
+            field.setFontSize(effectiveSize);
+
+        } catch (e) {
+            console.warn(`Could not find any of the text fields: "${name}"`);
+        }
+    };
+    
+    const setCheckBox = (name, check = true) => {
+        try {
+            const checkBox = form.getCheckBox(name);
+            if (check) checkBox.check();
+            else checkBox.uncheck();
+        } catch (e) {
+            console.warn(`Could not find any of the check boxes: "${name}"`);
+        }
+    };
+    
+    const totalLevel = hero.classes?.reduce((sum, c) => sum + (c.level || 0), 0) || 0;
+    const dieValue = (d) => parseInt(d?.substring(1) || '6', 10);
+    
+    const backgroundParts = (hero.background || '').split('\n');
+    const identityText = backgroundParts.find(s => s.toLowerCase().startsWith('identity:'))?.replace(/identity:\s*/i, '') || (hero.background.includes('\n') ? '' : hero.background);
+    const themeText = backgroundParts.find(s => s.toLowerCase().startsWith('theme:'))?.replace(/theme:\s*/i, '') || '';
+    const originText = backgroundParts.find(s => s.toLowerCase().startsWith('origin:'))?.replace(/origin:\s*/i, '') || '';
+    
+    // Character Info
+    setTextField('Nome', hero.name || '');
+    setTextField('Identita', identityText, { size: 8, wrap: true });
+    setTextField('Tema', themeText, { size: 8, wrap: true });
+    setTextField('Origine', originText, { size: 8, wrap: true });
+    setTextField('Genere', hero.gender || '');
+    setTextField('Livello', totalLevel.toString());
+    
+    // Resources
+    setTextField('PuntiFabula', (hero.fabulaPoints || 0).toString());
+    setTextField('Zenit', (hero.zenit || 0).toString());
+    
+    if (hero.fabulaAttributes) {
+        const attrs = hero.fabulaAttributes;
+        const dexBase = dieValue(attrs.dex);
+        const insBase = dieValue(attrs.ins);
+        const migBase = dieValue(attrs.mig);
+        const wlpBase = dieValue(attrs.wlp);
+
+        // Attributes
+        setTextField('DestrezzaBase', dexBase.toString());
+        setTextField('IntuitoBase', insBase.toString());
+        setTextField('VigoreBase', migBase.toString());
+        setTextField('VolontaBase', wlpBase.toString());
+        
+        setTextField('DestrezzaAttuale', dexBase.toString());
+        setTextField('IntuitoAttuale', insBase.toString());
+        setTextField('VigoreAttuale', migBase.toString());
+        setTextField('VolontaAttuale', wlpBase.toString());
+
+        // Calculated Stats
+        const freeBenefits = (hero.classes || []).map(c => fabulaClassDetails[c.classId]?.benefits).flat().filter(Boolean);
+        let hpBonus = 0, mpBonus = 0, ipBonus = 0;
+        (freeBenefits || []).forEach(b => {
+            const ben = b.en || '';
+            if (ben.includes("Hit Points")) hpBonus += 5;
+            if (ben.includes("Mind Points")) mpBonus += 5;
+            if (ben.includes("Inventory Points")) ipBonus += 2;
+        });
+
+        const maxHp = totalLevel + (migBase * 5) + hpBonus;
+        const maxMp = totalLevel + (wlpBase * 5) + mpBonus;
+        const maxIp = 6 + ipBonus;
+        const crisis = Math.floor(maxHp / 2);
+        
+        // Points
+        setTextField('PVmax', maxHp.toString());
+        setTextField('PMmax', maxMp.toString());
+        setTextField('PImax', maxIp.toString());
+        setTextField('PVcrisi', crisis.toString());
+        
+        // Combat
+        setTextField('Difesa', dexBase.toString());
+        setTextField('DifesaMagica', insBase.toString());
+    }
+    
+    // Current Points
+    setTextField('PVattuali', (hero.currentHp || 0).toString());
+    setTextField('PMattuali', (hero.currentMp || 0).toString());
+    setTextField('PIattuali', (hero.currentIp || 0).toString());
+    
+    // Statuses
+    if (hero.statuses) {
+        setCheckBox('StatusLento', hero.statuses.slow);
+        setCheckBox('StatusFurente', hero.statuses.enraged);
+        setCheckBox('StatusConfuso', hero.statuses.confused);
+        setCheckBox('StatusDebole', hero.statuses.weak);
+        setCheckBox('StatusAvvelenato', hero.statuses.poisoned);
+        setCheckBox('StatusScosso', hero.statuses.shaken);
+    }
+    
+    // Bonds
+    const bondCheckboxMap = {
+        '1': { admiration: 'C1059', inferiority: 'C1044', loyalty: 'C185', distrust: 'C186', affection: 'C187', hatred: 'C188' },
+        '2': { admiration: 'C1045', inferiority: 'C1046', loyalty: 'C189', distrust: 'C190', affection: 'C191', hatred: 'C192' },
+        '3': { admiration: 'C1047', inferiority: 'C1048', loyalty: 'C193', distrust: 'C194', affection: 'C195', hatred: 'C196' },
+        '4': { admiration: 'C1049', inferiority: 'C1050', loyalty: 'C197', distrust: 'C198', affection: 'C199', hatred: 'C200' },
+        '5': { admiration: 'C1051', inferiority: 'C1052', loyalty: 'C201', distrust: 'C202', affection: 'C203', hatred: 'C204' },
+        '6': { admiration: 'C1053', inferiority: 'C1054', loyalty: 'C205', distrust: 'C206', affection: 'C207', hatred: 'C2010' }
+    };
+
+    (hero.bonds || []).slice(0, 6).forEach((bond, i) => {
+        const bondIndex = i + 1;
+        setTextField(`Legame${bondIndex}`, bond.target || '');
+        const sentimentMap = bondCheckboxMap[bondIndex];
+        if (sentimentMap) {
+            Object.keys(bond.sentiments).forEach(key => {
+                if (bond.sentiments[key] && sentimentMap[key]) {
+                    setCheckBox(sentimentMap[key], true);
+                }
+            });
+        }
+    });
+
+    // Classes
+    (hero.classes || []).slice(0, 3).forEach((c, i) => {
+        const classIndex = i + 1;
+        const classDetails = fabulaClassDetails[c.classId];
+        if (!classDetails) return;
+
+        const className = t(fabulaClasses.find(fc => fc.id === c.classId)?.nameKey || c.classId);
+        setTextField(`Classe${classIndex}`, `${className} / L ${c.level}`);
+        
+        const benefitsText = (classDetails.benefits || [])
+            .map(b => `• ${b[language] || b.en}`)
+            .join('\n');
+        setTextField(`Benefici${classIndex}`, benefitsText, { size: 7, wrap: true });
+
+        const acquired = hero.acquiredAbilities?.[c.classId] || {};
+        const abilityDetails = classDetails.abilities || [];
+        const abilitiesText = Object.entries(acquired)
+            .map(([id, count]) => {
+                const detail = abilityDetails.find(ad => ad.id === id);
+                if (detail) {
+                    let name = detail.name[language] || detail.name.en;
+                    if (count > 1) name += ` (x${count})`;
+                    return `• ${name}`;
+                }
+                return null;
+            })
+            .filter(Boolean)
+            .join('\n');
+        setTextField(`Info${classIndex}`, abilitiesText, { size: 7, wrap: true });
+    });
+    
+    // Equipment
+    const armorKeywords = ['Armatura', 'Cotta', 'Vesti', 'Armor', 'Mail', 'Garb', 'Plate'];
+    const weaponKeywords = ['Spada', 'Pugnale', 'Arco', 'Bastone', 'Ascia', 'Lancia', 'Frusta', 'Tirapugni', 'Revolver', 'Spadone', 'Sword', 'Dagger', 'Bow', 'Staff', 'Axe', 'Spear', 'Whip', 'Knuckles', 'Greatsword', 'Shortbow'];
+    const shieldKeywords = ['Scudo', 'Broccoliere', 'Shield', 'Buckler'];
+    
+    let mainHand = '';
+    let offHand = '';
+    let armor = '';
+    
+    const remainingInventory = [...(hero.inventory || [])];
+    
+    const findAndSplice = (inventory, keywords) => {
+        const index = inventory.findIndex(item => keywords.some(kw => item.name.toLowerCase().includes(kw.toLowerCase())));
+        if (index > -1) {
+            const item = inventory.splice(index, 1)[0];
+            return item.name;
+        }
+        return '';
+    };
+
+    armor = findAndSplice(remainingInventory, armorKeywords);
+    mainHand = findAndSplice(remainingInventory, [...weaponKeywords, ...shieldKeywords]);
+    offHand = findAndSplice(remainingInventory, [...weaponKeywords, ...shieldKeywords]);
+    
+    setTextField('ArmaturaEquip', armor);
+    setTextField('Mano1Equip', mainHand);
+    setTextField('Mano2Equip', offHand);
+
+    const backpackText = (hero.inventory || [])
+        .map(item => `- ${item.name} (x${item.quantity || 1})`)
+        .join('\n');
+    setTextField('ZainoAppunti', backpackText, { size: 7, wrap: true });
+    
+    form.flatten();
+    return await pdfDoc.save();
 };

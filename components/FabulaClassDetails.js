@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { fabulaClassDetails } from '../data/fabulaUltimaData.js';
 
@@ -9,16 +8,19 @@ const CheckIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2
     React.createElement('path', { fillRule: "evenodd", d: "M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z", clipRule: "evenodd" })
 );
 
-const StarIcon = ({ filled }) => React.createElement('svg', {
+const StarIcon = ({ filled, disabled }) => React.createElement('svg', {
     xmlns: "http://www.w3.org/2000/svg",
-    className: `h-6 w-6 transition-colors ${filled ? 'text-[var(--highlight-secondary)]' : 'text-[var(--text-subtle)] hover:text-[var(--text-muted)]'}`,
+    className: `h-6 w-6 transition-colors ${
+        disabled && !filled ? 'text-gray-600' :
+        filled ? 'text-[var(--highlight-secondary)]' : 'text-[var(--text-subtle)] hover:text-[var(--text-muted)]'
+    }`,
     viewBox: "0 0 20 20",
     fill: "currentColor"
 }, React.createElement('path', { d: "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" })
 );
 
 
-const FabulaClassDetails = ({ className, defaultExpanded = false, acquiredAbilities, onAbilityChange }) => {
+const FabulaClassDetails = ({ className, defaultExpanded = false, acquiredAbilities, onAbilityChange, classLevel }) => {
     const { t, language } = useTranslation();
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -28,6 +30,7 @@ const FabulaClassDetails = ({ className, defaultExpanded = false, acquiredAbilit
 
     const data = fabulaClassDetails[className];
     const isEditable = !!onAbilityChange;
+    const abilitiesSpent = useMemo(() => Object.values(acquiredAbilities || {}).reduce((a, b) => a + b, 0), [acquiredAbilities]);
 
     const getText = (field) => {
         if (typeof field === 'object' && field !== null) {
@@ -76,47 +79,51 @@ const FabulaClassDetails = ({ className, defaultExpanded = false, acquiredAbilit
                     const nameText = getText(ability.name);
                     const maxAcquisitions = parseMaxAcquisitions(nameText);
                     const currentAcquisitions = acquiredAbilities?.[abilityId] || 0;
+                    const canAcquireMore = classLevel === undefined || abilitiesSpent < classLevel;
 
                     let controls = null;
                     if (isEditable) {
                         if (maxAcquisitions === 1) {
+                            const isAcquired = currentAcquisitions > 0;
+                            const isDisabled = !isAcquired && !canAcquireMore;
+
                             controls = React.createElement('button', {
                                 type: 'button',
-                                'aria-label': currentAcquisitions > 0 ? `${t('acquired')}: ${nameText}` : `${t('acquire')}: ${nameText}`,
-                                onClick: () => onAbilityChange(abilityId, currentAcquisitions === 0 ? 1 : 0),
+                                'aria-label': isAcquired ? `${t('acquired')}: ${nameText}` : `${t('acquire')}: ${nameText}`,
+                                onClick: () => onAbilityChange(abilityId, isAcquired ? 0 : 1),
+                                disabled: isDisabled,
                                 className: `flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                                    currentAcquisitions > 0 
+                                    isAcquired 
                                     ? 'bg-green-800/50 text-green-300 border border-green-600' 
-                                    : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] text-[var(--text-secondary)]'
+                                    : `bg-[var(--bg-tertiary)] text-[var(--text-secondary)] ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--bg-quaternary)]'}`
                                 }`
                             },
-                                React.createElement('div', { className: `w-4 h-4 rounded-sm border-2 flex items-center justify-center ${currentAcquisitions > 0 ? 'bg-green-500 border-green-400' : 'border-gray-400 bg-[var(--bg-secondary)]'}` },
-                                    currentAcquisitions > 0 && React.createElement(CheckIcon)
+                                React.createElement('div', { className: `w-4 h-4 rounded-sm border-2 flex items-center justify-center ${isAcquired ? 'bg-green-500 border-green-400' : 'border-gray-400 bg-[var(--bg-secondary)]'}` },
+                                    isAcquired && React.createElement(CheckIcon)
                                 ),
-                                React.createElement('span', { className: 'font-semibold' }, currentAcquisitions > 0 ? t('acquired') : t('acquire'))
+                                React.createElement('span', { className: 'font-semibold' }, isAcquired ? t('acquired') : t('acquire'))
                             );
                         } else {
                             controls = React.createElement('div', { className: 'flex items-center gap-1' },
                                 Array.from({ length: maxAcquisitions }).map((_, index) => {
                                     const starValue = index + 1;
                                     const isFilled = starValue <= currentAcquisitions;
-                        
+                                    
                                     const handleStarClick = () => {
-                                        const newCount = starValue;
-                                        if (newCount === currentAcquisitions) {
-                                            onAbilityChange(abilityId, currentAcquisitions - 1);
-                                        } else {
-                                            onAbilityChange(abilityId, newCount);
-                                        }
+                                        const newCount = starValue === currentAcquisitions ? starValue - 1 : starValue;
+                                        onAbilityChange(abilityId, newCount);
                                     };
                                     
+                                    const canSelectThisStar = isFilled || (abilitiesSpent - currentAcquisitions + starValue <= classLevel);
+
                                     return React.createElement('button', {
                                         key: index,
                                         type: 'button',
                                         'aria-label': `Set ${nameText} rank to ${starValue}`,
                                         onClick: handleStarClick,
-                                        className: 'p-0.5 rounded-full'
-                                    }, React.createElement(StarIcon, { filled: isFilled }));
+                                        disabled: classLevel !== undefined && !canSelectThisStar,
+                                        className: 'p-0.5 rounded-full disabled:cursor-not-allowed'
+                                    }, React.createElement(StarIcon, { filled: isFilled, disabled: classLevel !== undefined && !canSelectThisStar && !isFilled }));
                                 })
                             );
                         }
@@ -141,7 +148,7 @@ const FabulaClassDetails = ({ className, defaultExpanded = false, acquiredAbilit
                         React.createElement('h4', { className: 'font-bold text-[var(--text-primary)]' }, spell.name),
                         React.createElement('span', { className: 'text-xs text-[var(--text-muted)]' }, `MP: ${spell.mp}`)
                     ),
-                    React.createElement('div', { className: 'text-xs text-[var(--text-muted)] mb-2' },
+                    React.createElement('div', { className: 'text-sm text-[var(--text-muted)] mb-2' },
                         React.createElement('span', null, `${t('target')}: ${spell.target}`),
                         React.createElement('span', { className: 'mx-2' }, '|'),
                         React.createElement('span', null, `${t('duration')}: ${spell.duration}`)
@@ -158,9 +165,10 @@ const FabulaClassDetails = ({ className, defaultExpanded = false, acquiredAbilit
             'aria-expanded': isExpanded,
             className: `w-full flex justify-between items-center text-left p-4 bg-[var(--bg-secondary)] border border-[var(--border-accent)]/50 shadow-lg transition-all duration-300 ${isExpanded ? 'rounded-t-lg' : 'rounded-lg hover:bg-[var(--bg-tertiary)]'}`
         },
-            React.createElement('div', null, 
+            React.createElement('div', { className: 'flex-grow' }, 
                 React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, getText(data.name)),
-                data.alsoKnownAs && React.createElement('p', { className: 'text-sm text-[var(--text-muted)] italic' }, `(${t('alsoKnownAs')}: ${getText(data.alsoKnownAs)})`)
+                isEditable && classLevel !== undefined && React.createElement('p', { className: 'text-sm text-[var(--text-muted)]' }, `${t('abilitiesSelected')}: ${abilitiesSpent} / ${classLevel}`),
+                data.alsoKnownAs && !isExpanded && React.createElement('p', { className: 'text-sm text-[var(--text-muted)] italic' }, `(${t('alsoKnownAs')}: ${getText(data.alsoKnownAs)})`)
             ),
             React.createElement(ChevronDownIcon, { open: isExpanded })
         ),
