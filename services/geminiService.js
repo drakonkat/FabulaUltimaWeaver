@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { fabulaClasses, fabulaClassDetails } from '../data/fabulaUltimaData.js';
@@ -493,45 +494,54 @@ export const generateOneShotAdventure = async (params, language) => {
     }
 };
 
-const wrapText = (text, width, font, fontSize) => {
+const wrapText = (text, maxWidth, font, fontSize) => {
     if (!text) return '';
+    const outputLines = [];
     
-    const processedWords = [];
-    const words = text.split(' ');
-    
-    for (let word of words) {
-        let currentWord = word;
-        while (font.widthOfTextAtSize(currentWord, fontSize) > width) {
-            let splitIndex = 0;
-            for (let i = 1; i <= currentWord.length; i++) {
-                if (font.widthOfTextAtSize(currentWord.substring(0, i), fontSize) > width) {
-                    splitIndex = i - 1;
-                    break;
+    const textLines = text.split('\n');
+
+    for (const textLine of textLines) {
+        let currentLine = '';
+        const words = textLine.split(' ');
+        const measure = (str) => font.widthOfTextAtSize(str, fontSize);
+
+        for (let word of words) {
+            // Handle words too long for a single line
+            while (measure(word) > maxWidth) {
+                // Push whatever is on the current line first
+                if (currentLine) {
+                    outputLines.push(currentLine);
+                    currentLine = '';
                 }
+                // Find the split point
+                let splitIndex = 0;
+                for (let i = 1; i <= word.length; i++) {
+                    if (measure(word.substring(0, i)) > maxWidth) {
+                        splitIndex = i > 1 ? i - 1 : 1;
+                        break;
+                    }
+                }
+                // Push the part that fits
+                outputLines.push(word.substring(0, splitIndex));
+                // The rest of the word becomes the new word to process
+                word = word.substring(splitIndex);
             }
-            if (splitIndex === 0) splitIndex = 1;
-            processedWords.push(currentWord.substring(0, splitIndex));
-            currentWord = currentWord.substring(splitIndex);
+
+            // Now process the word (or its remainder)
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            if (measure(testLine) <= maxWidth) {
+                currentLine = testLine;
+            } else {
+                outputLines.push(currentLine);
+                currentLine = word;
+            }
         }
-        processedWords.push(currentWord);
-    }
-
-    const lines = [];
-    let currentLine = processedWords[0] || '';
-
-    for (let i = 1; i < processedWords.length; i++) {
-        const word = processedWords[i];
-        if (!word) continue;
-        const widthOfLineWithWord = font.widthOfTextAtSize(`${currentLine} ${word}`, fontSize);
-        if (widthOfLineWithWord < width) {
-            currentLine += ` ${word}`;
-        } else {
-            lines.push(currentLine);
-            currentLine = word;
+        if (currentLine) {
+            outputLines.push(currentLine);
         }
     }
-    lines.push(currentLine);
-    return lines.join('\n');
+    
+    return outputLines.join('\n');
 };
 
 export const generateFabulaUltimaSheet = async (hero, language) => {
@@ -546,7 +556,7 @@ export const generateFabulaUltimaSheet = async (hero, language) => {
         return translation;
     };
 
-    const url = `resources/Fabula-Ultima-Scheda-del-Personaggio.pdf`;
+    const url = `${import.meta.env.BASE_URL}resources/Fabula-Ultima-Scheda-del-Personaggio.pdf`;
     const existingPdfBytes = await fetch(url).then(res => {
         if (!res.ok) {
             throw new Error(`Could not fetch PDF template at ${url}. Please ensure 'Fabula-Ultima-Scheda-del-Personaggio.pdf' is in the public/resources directory of the application. Status: ${res.status}`);
