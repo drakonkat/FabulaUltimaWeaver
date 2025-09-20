@@ -495,12 +495,33 @@ export const generateOneShotAdventure = async (params, language) => {
 
 const wrapText = (text, width, font, fontSize) => {
     if (!text) return '';
+    
+    const processedWords = [];
     const words = text.split(' ');
-    let lines = [];
-    let currentLine = words[0] || '';
+    
+    for (let word of words) {
+        let currentWord = word;
+        while (font.widthOfTextAtSize(currentWord, fontSize) > width) {
+            let splitIndex = 0;
+            for (let i = 1; i <= currentWord.length; i++) {
+                if (font.widthOfTextAtSize(currentWord.substring(0, i), fontSize) > width) {
+                    splitIndex = i - 1;
+                    break;
+                }
+            }
+            if (splitIndex === 0) splitIndex = 1;
+            processedWords.push(currentWord.substring(0, splitIndex));
+            currentWord = currentWord.substring(splitIndex);
+        }
+        processedWords.push(currentWord);
+    }
 
-    for (let i = 1; i < words.length; i++) {
-        const word = words[i];
+    const lines = [];
+    let currentLine = processedWords[0] || '';
+
+    for (let i = 1; i < processedWords.length; i++) {
+        const word = processedWords[i];
+        if (!word) continue;
         const widthOfLineWithWord = font.widthOfTextAtSize(`${currentLine} ${word}`, fontSize);
         if (widthOfLineWithWord < width) {
             currentLine += ` ${word}`;

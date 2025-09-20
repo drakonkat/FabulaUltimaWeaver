@@ -7,7 +7,7 @@ import { randomizerData } from '../data/randomizerData.js';
 import { fabulaClasses } from '../data/fabulaUltimaData.js';
 import FabulaClassDetails from './FabulaClassDetails.js';
 import FabulaGuidedCreation from './FabulaGuidedCreation.js';
-import PdfPreviewModal from './PdfPreviewModal.js';
+import { generateFabulaUltimaSheet } from '../services/geminiService.js';
 
 
 const UserPlusIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" },
@@ -663,7 +663,30 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
     );
 
     const HeroCard = ({ hero }) => {
-        const [isPdfModalOpen, setPdfModalOpen] = useState(false);
+        const { t, language } = useTranslation();
+        const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+        const handleDownloadPdf = async () => {
+            if (isGeneratingPdf) return;
+            setIsGeneratingPdf(true);
+            try {
+                const bytes = await generateFabulaUltimaSheet(hero, language);
+                const blob = new Blob([bytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${hero.name.replace(/ /g, '_')}_fabula_ultima.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            } catch (err) {
+                console.error("PDF generation failed:", err);
+                alert(t('errorTitle'));
+            } finally {
+                setIsGeneratingPdf(false);
+            }
+        };
+
         const totalWeight = useMemo(() => {
             if (!hero.inventory) return '0.00';
             return hero.inventory.reduce((total, item) => {
@@ -709,10 +732,11 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                     ),
                     React.createElement('div', { className: "flex-shrink-0 flex gap-2 items-center" },
                         hero.characterType === 'fabulaUltima' && React.createElement('button', {
-                            onClick: () => setPdfModalOpen(true),
-                            className: 'flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-secondary)] hover:bg-[var(--accent-tertiary)] text-white',
-                            title: t('previewPdf')
-                        }, t('previewPdf')),
+                            onClick: handleDownloadPdf,
+                            disabled: isGeneratingPdf,
+                            className: 'flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-secondary)] hover:bg-[var(--accent-tertiary)] text-white disabled:bg-gray-500',
+                            title: t('downloadPdf')
+                        }, isGeneratingPdf ? t('generatingPdf') : t('downloadPdf')),
                         React.createElement('button', { onClick: () => setEditingHero(hero), className: "p-2 text-blue-400 hover:text-blue-300", 'aria-label': `${t('edit')} ${hero.name}` }, React.createElement(PencilIcon, null)),
                         React.createElement('button', { onClick: () => onRemoveHero(hero.id), className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)]", 'aria-label': `${t('remove')} ${hero.name}` }, React.createElement(TrashIcon, null))
                     )
@@ -775,8 +799,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                         classLevel: c.level
                     })
                 )
-            ),
-            React.createElement(PdfPreviewModal, { isOpen: isPdfModalOpen, onClose: () => setPdfModalOpen(false), hero: hero })
+            )
         );
     };
 
