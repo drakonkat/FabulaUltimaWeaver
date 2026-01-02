@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import CampaignNameEditor from './CampaignNameEditor.js';
 import HeroManager from './HeroManager.js';
 import MonsterManager from './MonsterManager.js';
-import { chatWithNpc } from '../services/geminiService.js';
+import { chatWithNpc, modifyOneShotContent } from '../services/geminiService.js';
 
 
 const SparklesIcon = ({ className = "h-4 w-4" }) => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className, viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 0a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V6h-1a1 1 0 010-2h1V3a1 1 0 011-1zM9 10a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1v-1a1 1 0 011-1zm7-5a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V8h-1a1 1 0 010-2h1V5a1 1 0 011-1z", clipRule: "evenodd" }));
@@ -13,6 +14,7 @@ const TrashIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2
 const ChatBubbleIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 mr-1", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.08-3.242A8.937 8.937 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.832 14.168L5.5 12.5a6.938 6.938 0 00-.001-5l-.668-1.668a7.001 7.001 0 005.169 9.336z", clipRule: "evenodd" }));
 const CloseIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z", clipRule: "evenodd" }));
 const SendIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { d: "M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" }));
+const WandIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 0a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V6h-1a1 1 0 010-2h1V3a1 1 0 011-1zM9 10a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1v-1a1 1 0 011-1zm7-5a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V8h-1a1 1 0 010-2h1V5a1 1 0 011-1z", clipRule: "evenodd" }));
 
 
 const NpcChatButton = ({ npc }) => {
@@ -116,6 +118,55 @@ const NpcChatButton = ({ npc }) => {
     );
 };
 
+const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading }) => {
+    const { t } = useTranslation();
+    const [instruction, setInstruction] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (instruction.trim()) {
+            onConfirm(instruction);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return React.createElement('div', {
+        className: "fixed inset-0 bg-black/70 z-[100] flex items-center justify-center animate-fade-in",
+        'aria-modal': true, role: "dialog", onClick: onClose
+    },
+        React.createElement('div', {
+            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-md m-4 border-2 border-[var(--border-accent)]",
+            onClick: e => e.stopPropagation()
+        },
+            React.createElement('h3', { className: "text-lg font-bold text-[var(--highlight-secondary)] mb-4" }, t('modifyWithAI')),
+            React.createElement('form', { onSubmit: handleSubmit },
+                React.createElement('textarea', {
+                    value: instruction,
+                    onChange: e => setInstruction(e.target.value),
+                    placeholder: t('modificationPlaceholder'),
+                    className: "w-full p-3 bg-[var(--bg-primary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-32 resize-none mb-4",
+                    disabled: isLoading,
+                    autoFocus: true
+                }),
+                React.createElement('div', { className: "flex justify-end gap-2" },
+                    React.createElement('button', {
+                        type: "button",
+                        onClick: onClose,
+                        disabled: isLoading,
+                        className: "px-4 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] transition-colors"
+                    }, t('cancel')),
+                    React.createElement('button', {
+                        type: "submit",
+                        disabled: isLoading || !instruction.trim(),
+                        className: "px-4 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] hover:opacity-90 transition-opacity disabled:opacity-50"
+                    }, isLoading ? t('generating') : t('apply'))
+                )
+            )
+        )
+    );
+};
+
 const RegenerableInput = ({ label, value, placeholder, type = 'text', onChange, onRegenerate, canGenerate }) => {
     const { t } = useTranslation();
     const [isRegenerating, setIsRegenerating] = useState(false);
@@ -156,8 +207,9 @@ const RegenerableInput = ({ label, value, placeholder, type = 'text', onChange, 
 };
 
 const StoryArcForm = ({ arc, onUpdate, onRemove, onGenerate, onRewrite, canGenerate, isOnlyArc }) => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isModifying, setIsModifying] = useState(false);
 
     const handleFieldChange = (field, value) => {
         onUpdate({ ...arc, [field]: value });
@@ -174,6 +226,24 @@ const StoryArcForm = ({ arc, onUpdate, onRemove, onGenerate, onRewrite, canGener
         setIsGenerating(false);
     };
 
+    const handleModifyWithAI = async (instruction) => {
+        if (!canGenerate || isGenerating) return;
+        setIsGenerating(true);
+        try {
+            // Need to import this function or pass it down. Assuming it is imported at top level or available.
+            // But since this component is inside OneShotDashboard.js, we can import `modifyOneShotContent` directly.
+            const modifiedContent = await modifyOneShotContent(arc, instruction, 'mainStoryArc', language);
+            if (modifiedContent) {
+                onUpdate({ ...arc, ...modifiedContent });
+            }
+        } catch (e) {
+            console.error("Modification failed", e);
+        } finally {
+            setIsGenerating(false);
+            setIsModifying(false);
+        }
+    };
+
     const fields = [
         { key: 'title', placeholder: t('title'), type: 'text' },
         { key: 'premise', placeholder: t('premisePlaceholder'), type: 'textarea' },
@@ -185,9 +255,23 @@ const StoryArcForm = ({ arc, onUpdate, onRemove, onGenerate, onRewrite, canGener
     ];
 
     return React.createElement('div', { className: 'p-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)]' },
+        React.createElement(ModificationModal, { 
+            isOpen: isModifying, 
+            onClose: () => setIsModifying(false), 
+            onConfirm: handleModifyWithAI,
+            isLoading: isGenerating 
+        }),
         React.createElement('div', { className: 'flex justify-between items-center mb-4' },
             React.createElement('h3', { className: 'text-xl font-semibold text-[var(--accent-primary)]' }, arc.title || t('mainStoryArc')),
             React.createElement('div', { className: 'flex gap-2' },
+                React.createElement('button', { 
+                    onClick: () => setIsModifying(true), 
+                    disabled: !canGenerate || isGenerating, 
+                    className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-secondary)]/80 hover:bg-[var(--accent-secondary)] text-white transition-colors disabled:opacity-50" 
+                },
+                    React.createElement(WandIcon, { className: 'h-5 w-5 mr-1' }),
+                    t('modifyWithAI')
+                ),
                 React.createElement('button', { onClick: handleGenerateAll, disabled: !canGenerate || isGenerating, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50" },
                     React.createElement(SparklesIcon, { className: 'h-5 w-5 mr-1' }),
                     isGenerating ? t('generating') : t('generateAll')

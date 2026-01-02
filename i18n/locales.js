@@ -1,3 +1,4 @@
+
 export const translations = {
   en: {
     appName: "The GM's Codex",
@@ -308,6 +309,10 @@ export const translations = {
     loadAdventure: 'Load Adventure',
     duration: 'Est. Duration',
     players: 'Players',
+    modifyWithAI: 'Modify with AI',
+    modificationPrompt: 'How should the AI modify this?',
+    modificationPlaceholder: 'e.g., "Make the villain a fallen paladin instead of a wizard", or "Add a plot twist involving the king".',
+    apply: 'Apply',
     // AI Generator
     generateWithAI: 'Generate with AI',
     generateAdventure: 'Generate Adventure',
@@ -778,6 +783,10 @@ export const translations = {
     loadAdventure: 'Carica Avventura',
     duration: 'Durata Stimata',
     players: 'Giocatori',
+    modifyWithAI: 'Modifica con AI',
+    modificationPrompt: 'Come deve intervenire l\'AI?',
+    modificationPlaceholder: 'es. "Rendi il cattivo un paladino caduto invece di un mago", oppure "Aggiungi un colpo di scena che coinvolge il re".',
+    apply: 'Applica',
     // AI Generator
     generateWithAI: 'Genera con AI',
     generateAdventure: 'Genera Avventura',

@@ -407,6 +407,49 @@ export const generateOneShotContent = async (partToGenerate, oneShotContext, lan
     }
 };
 
+export const modifyOneShotContent = async (currentContent, userInstruction, partToGenerate, language) => {
+    const model = 'gemini-2.5-flash';
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+    const schema = ONE_SHOT_SCHEMAS[partToGenerate];
+
+    if (!schema) {
+        throw new Error(`Invalid one-shot part to modify: ${partToGenerate}`);
+    }
+
+    const systemInstruction = `You are a creative and expert Game Master for tabletop RPGs. Your task is to MODIFY existing content for a one-shot adventure based on a user's instruction. You must return a complete JSON object following the schema, integrating the changes requested while maintaining coherence with the original content where not specified otherwise. Your entire response MUST be in ${languageInstruction}.`;
+
+    const prompt = `
+    EXISTING CONTENT (JSON):
+    ${JSON.stringify(currentContent, null, 2)}
+
+    USER INSTRUCTION FOR MODIFICATION:
+    "${userInstruction}"
+
+    Please regenerate the content applying the user's instruction. Keep the structure identical to the schema.
+    `;
+
+    const contents = { parts: [{ text: prompt }] };
+
+    const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: schema,
+        },
+    });
+
+    try {
+        const jsonText = response.text.trim();
+        const parsedData = JSON.parse(jsonText);
+        return parsedData;
+    } catch (e) {
+        console.error("Failed to parse JSON response for one-shot modification:", response.text);
+        throw new Error("The AI returned an invalid response. Please try again.");
+    }
+};
+
 export const chatWithNpc = async (npc, chatHistory, language) => {
     const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
