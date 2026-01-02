@@ -358,7 +358,9 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
             onConfirm: () => {
                 const { width, height } = canvasRef.current;
                 let newDrawings = [];
+                let newTokens = [];
                 const color = '#888';
+                let monsterCount = 0;
     
                 if (settings.type === 'caverns') {
                     const numCaves = { small: 15, medium: 25, large: 40 }[settings.size];
@@ -375,7 +377,20 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                         const path = [{x: c1.x, y: c1.y}, {x: c2.x, y: c2.y}];
                         newDrawings.push({ type: 'path', id: crypto.randomUUID(), color, strokeWidth: 40 + Math.random() * 20, points: path });
                     }
-                    caves.forEach(c => newDrawings.push({ type: 'circle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, cx: c.x, cy: c.y, radius: c.radius }));
+                    caves.forEach((c, index) => {
+                        newDrawings.push({ type: 'circle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, cx: c.x, cy: c.y, radius: c.radius });
+                        
+                        // Populate with monsters and props (stalagmites)
+                        if (index > 0 && Math.random() > 0.6) {
+                            monsterCount++;
+                            newTokens.push({
+                                id: crypto.randomUUID(),
+                                x: c.x, y: c.y, radius: 15, color: '#EF4444', label: `M${monsterCount}`
+                            });
+                        } else if (Math.random() > 0.7) {
+                             newDrawings.push({ type: 'pillar', id: crypto.randomUUID(), x: c.x, y: c.y });
+                        }
+                    });
                 } else { // classicDungeon or ruins
                     const numRooms = { small: 7, medium: 12, large: 20 }[settings.size];
                     const rooms = [];
@@ -395,14 +410,53 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                         if (!overlapping) rooms.push(newRoom);
                     }
                     rooms.sort((a,b) => (a.x+a.y) - (b.x+b.y));
+                    
                     for (let i = 0; i < rooms.length - 1; i++) {
                         const r1 = rooms[i]; const r2 = rooms[i+1];
                         const c1x = r1.x + r1.w/2; const c1y = r1.y + r1.h/2;
                         const c2x = r2.x + r2.w/2; const c2y = r2.y + r2.h/2;
                         const path = [{x: c1x, y: c1y}, {x: c1x, y: c2y}, {x: c2x, y: c2y}];
                         newDrawings.push({ type: 'path', id: crypto.randomUUID(), color, strokeWidth: 15, points: path });
+                        
+                        // Add doors at connection points (simplified)
+                        if (Math.random() > 0.3) {
+                            newDrawings.push({ type: 'door', id: crypto.randomUUID(), x: c1x, y: r1.y + r1.h });
+                        }
                     }
-                    rooms.forEach(room => newDrawings.push({ type: 'rectangle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, x: room.x, y: room.y, width: room.w, height: room.h }));
+                    
+                    rooms.forEach((room, index) => {
+                        newDrawings.push({ type: 'rectangle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, x: room.x, y: room.y, width: room.w, height: room.h });
+                        
+                        // Populate Dungeon
+                        const centerX = room.x + room.w / 2;
+                        const centerY = room.y + room.h / 2;
+
+                        if (index === rooms.length - 1) {
+                            // Boss Room
+                            newTokens.push({
+                                id: crypto.randomUUID(),
+                                x: centerX, y: centerY, radius: 25, color: '#B91C1C', label: 'B'
+                            });
+                            newDrawings.push({ type: 'chest', id: crypto.randomUUID(), x: centerX + 30, y: centerY });
+                        } else if (index > 0) { // Skip first room (start)
+                            if (Math.random() > 0.4) {
+                                // Add random monsters
+                                const count = Math.floor(Math.random() * 2) + 1;
+                                for(let m=0; m<count; m++) {
+                                    monsterCount++;
+                                    newTokens.push({
+                                        id: crypto.randomUUID(),
+                                        x: centerX - 10 + (m*20), y: centerY, radius: 15, color: '#EF4444', label: `M${monsterCount}`
+                                    });
+                                }
+                            }
+                            // Add Props
+                            if (Math.random() > 0.5) {
+                                const propType = Math.random() > 0.6 ? 'table' : (Math.random() > 0.5 ? 'chest' : 'pillar');
+                                newDrawings.push({ type: propType, id: crypto.randomUUID(), x: centerX, y: centerY + 20 });
+                            }
+                        }
+                    });
                     
                     if (settings.type === 'ruins') {
                         const damaged = [];
@@ -414,10 +468,8 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                     }
                 }
     
-                if (newDrawings.length > 0) {
-                    const newLayers = map.layers.map(l => l.id === activeLayer.id ? { ...l, drawings: newDrawings, tokens: [] } : l);
-                    onSave({ ...map, layers: newLayers });
-                }
+                const newLayers = map.layers.map(l => l.id === activeLayer.id ? { ...l, drawings: newDrawings, tokens: newTokens } : l);
+                onSave({ ...map, layers: newLayers });
             }
         });
     };
