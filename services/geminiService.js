@@ -537,6 +537,128 @@ export const generateOneShotAdventure = async (params, language) => {
     }
 };
 
+const FABULA_MONSTER_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        name: { type: Type.STRING, description: "Name of the monster." },
+        description: { type: Type.STRING, description: "Brief description of the monster." },
+        traits: { type: Type.STRING, description: "Typical traits of the monster (e.g. intelligent, aggressive, flying)." },
+        level: { type: Type.INTEGER, description: "Level of the monster (5-60)." },
+        rank: { type: Type.STRING, enum: ["soldier", "elite", "champion"], description: "Rank of the monster." },
+        species: { type: Type.STRING, enum: ["beast", "construct", "demon", "elemental", "monster", "plant", "undead", "humanoid"], description: "Species of the monster." },
+        attributes: {
+            type: Type.OBJECT,
+            properties: {
+                dex: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
+                ins: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
+                mig: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
+                wlp: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
+            },
+            required: ["dex", "ins", "mig", "wlp"]
+        },
+        stats: {
+            type: Type.OBJECT,
+            properties: {
+                hp: { type: Type.INTEGER, description: "Max Hit Points." },
+                mp: { type: Type.INTEGER, description: "Max Mind Points." },
+                init: { type: Type.INTEGER, description: "Initiative Score." },
+                def: { type: Type.INTEGER, description: "Defense Score." },
+                mdef: { type: Type.INTEGER, description: "Magic Defense Score." },
+            },
+            required: ["hp", "mp", "init", "def", "mdef"]
+        },
+        affinities: {
+            type: Type.OBJECT,
+            properties: {
+                physical: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                air: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                bolt: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                dark: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                earth: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                fire: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                ice: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                light: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                poison: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+            }
+        },
+        basicAttacks: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    attr1: { type: Type.STRING, enum: ["DEX", "INS", "MIG", "WLP"] },
+                    attr2: { type: Type.STRING, enum: ["DEX", "INS", "MIG", "WLP"] },
+                    damageMod: { type: Type.INTEGER, description: "Modifier added to High Roll (HR)." },
+                    damageType: { type: Type.STRING, description: "Type of damage (e.g. physical, fire)." },
+                    special: { type: Type.STRING, nullable: true, description: "Special effects." },
+                    range: { type: Type.STRING, enum: ["melee", "ranged"] }
+                },
+                required: ["name", "attr1", "attr2", "damageMod", "damageType", "range"]
+            }
+        },
+        spells: {
+             type: Type.ARRAY,
+             nullable: true,
+             items: {
+                 type: Type.OBJECT,
+                 properties: {
+                     name: { type: Type.STRING },
+                     mpCost: { type: Type.STRING },
+                     target: { type: Type.STRING },
+                     duration: { type: Type.STRING },
+                     effect: { type: Type.STRING },
+                     isOffensive: { type: Type.BOOLEAN },
+                 },
+                 required: ["name", "mpCost", "target", "duration", "effect"]
+             }
+        },
+        specialRules: {
+            type: Type.ARRAY,
+            nullable: true,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    effect: { type: Type.STRING }
+                },
+                required: ["name", "effect"]
+            }
+        }
+    },
+    required: ["name", "description", "level", "rank", "species", "attributes", "stats", "basicAttacks"]
+};
+
+export const generateFabulaMonster = async (prompt, language) => {
+    const model = 'gemini-2.5-flash';
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+
+    const systemInstruction = `You are an expert game designer for the Fabula Ultima TTRPG. Your task is to generate a balanced, game-ready monster stat block based on the user's description. You must strictly adhere to the provided JSON schema. Ensure all stats (HP, MP, Initiative, etc.) are calculated correctly according to the Fabula Ultima rules for the monster's level, rank, and species. The response MUST be in ${languageInstruction}.`;
+    
+    const userPrompt = `Generate a Fabula Ultima monster based on this description: "${prompt}".`;
+
+    const contents = { parts: [{ text: userPrompt }] };
+
+    const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: FABULA_MONSTER_SCHEMA,
+        },
+    });
+
+    try {
+        const jsonText = response.text.trim();
+        const parsedData = JSON.parse(jsonText);
+        return { ...parsedData, type: 'fabula' };
+    } catch (e) {
+        console.error("Failed to parse JSON response for monster generation:", response.text);
+        throw new Error("The AI returned an invalid response. Please try again.");
+    }
+};
+
 const wrapText = (text, maxWidth, font, fontSize) => {
     if (!text) return '';
     const outputLines = [];
