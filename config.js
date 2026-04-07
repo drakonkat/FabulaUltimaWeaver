@@ -1,4 +1,8 @@
-// This file contains application-wide configuration.
+/**
+ * Application configuration for GM's Codex.
+ * Contains constants for API keys, limits, and feature flags.
+ * @module config
+ */
 
 // IMPORTANT: You must create a Google Cloud project and get a Client ID for Google Sign-In to work.
 // Create a file named .env.local and add your Google Client ID like this:
@@ -7,10 +11,12 @@ export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLI
 
 /**
  * The maximum number of campaigns a user can create on the free plan.
+ * @type {number}
  */
 export const MAX_CAMPAIGNS = 5;
 
 /**
  * The maximum number of story generations (new or continuations) a user can perform per day.
+ * @type {number}
  */
 export const MAX_DAILY_PROMPTS = 20;

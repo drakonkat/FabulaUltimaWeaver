@@ -2,28 +2,18 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { generateStory, rewriteText, generateCharacterBackground, generateOneShotContent, chatWithNpc, generateOneShotAdventure } from './services/geminiService.js';
-import Header from './components/Header.js';
-import PromptInput from './components/PromptInput.js';
-import LoadingSpinner from './components/LoadingSpinner.js';
-import StoryDisplay from './components/StoryDisplay.js';
-import HeroManager from './components/HeroManager.js';
-import MonsterManager from './components/MonsterManager.js';
-import ContinuationInput from './components/ContinuationInput.js';
-import CampaignList from './components/CampaignList.js';
-import OneShotList from './components/OneShotList.js';
-import OneShotDashboard from './components/OneShotDashboard.js';
-import BackupManager from './components/BackupManager.js';
-import LoginScreen from './components/LoginScreen.js';
-import Footer from './components/Footer.js';
-import Onboarding from './components/Onboarding.js';
+import { Header, BottomNavBar, MainViewSwitcher } from './components/layout/index.js';
+import { PromptInput, StoryDisplay, ContinuationInput } from './components/story/index.js';
+import { LoadingSpinner } from './components/ui/index.js';
+import { HeroManager, MonsterManager } from './components/characters/index.js';
+import { CampaignList, CampaignNameEditor, BattleMapManager } from './components/campaign/index.js';
+import { OneShotList, OneShotDashboard } from './components/one-shot/index.js';
+import { BackupManager, LoginScreen, Onboarding } from './components/gm/index.js';
+import { Footer } from './components/ui/index.js';
 import { LanguageProvider, useTranslation } from './hooks/useTranslation.js';
 import { ThemeContext } from './hooks/useTheme.js';
 import { MAX_CAMPAIGNS, MAX_DAILY_PROMPTS, GOOGLE_CLIENT_ID } from './config.js';
-import { exampleCampaignData } from './data/exampleCampaign.js';
-import BottomNavBar from './components/BottomNavBar.js';
-import MainViewSwitcher from './components/MainViewSwitcher.js';
-import CampaignNameEditor from './components/CampaignNameEditor.js';
-import BattleMapManager from './components/BattleMapManager.js';
+import { exampleCampaignData } from './data/index.js';
 
 
 // START: Confirmation Modal
