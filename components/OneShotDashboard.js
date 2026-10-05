@@ -4,7 +4,7 @@ import { useTranslation } from '../hooks/useTranslation.js';
 import CampaignNameEditor from './CampaignNameEditor.js';
 import HeroManager from './HeroManager.js';
 import MonsterManager from './MonsterManager.js';
-import { chatWithNpc, modifyOneShotContent } from '../services/geminiService.js';
+import { chatWithNpc, modifyOneShotContent, modifyOneShotAdventure, ONE_SHOT_EDIT_SECTIONS } from '../services/geminiService.js';
 
 
 const SparklesIcon = ({ className = "h-4 w-4" }) => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className, viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm6 0a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V6h-1a1 1 0 010-2h1V3a1 1 0 011-1zM9 10a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0v-1h-1a1 1 0 010-2h1v-1a1 1 0 011-1zm7-5a1 1 0 011 1v1h1a1 1 0 010 2h-1v1a1 1 0 01-2 0V8h-1a1 1 0 010-2h1V5a1 1 0 011-1z", clipRule: "evenodd" }));
@@ -118,7 +118,7 @@ const NpcChatButton = ({ npc }) => {
     );
 };
 
-const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading, error, preview, onApply }) => {
+const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading, error, preview, onApply, title, placeholder }) => {
     const { t } = useTranslation();
     const [instruction, setInstruction] = useState('');
 
@@ -139,7 +139,7 @@ const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading, error, previ
             className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-md m-4 max-h-[calc(100dvh-2rem)] overflow-y-auto border-2 border-[var(--border-accent)]",
             onClick: e => e.stopPropagation()
         },
-            React.createElement('h3', { className: "text-lg font-bold text-[var(--highlight-secondary)] mb-4" }, t('modifyWithAI')),
+            React.createElement('h3', { className: "text-lg font-bold text-[var(--highlight-secondary)] mb-4" }, title || t('modifyWithAI')),
             error && React.createElement('p', { role: 'alert', className: 'mb-3 text-[var(--danger-text)]' }, error),
             preview ? React.createElement('div', { className: 'space-y-4' },
                 React.createElement('p', null, t('monsterAIReady')),
@@ -156,7 +156,7 @@ const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading, error, previ
                     'aria-label': t('modificationPrompt'),
                     value: instruction,
                     onChange: e => setInstruction(e.target.value),
-                    placeholder: t('modificationPlaceholder'),
+                    placeholder: placeholder || t('modificationPlaceholder'),
                     className: "w-full p-3 bg-[var(--bg-primary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-32 resize-none mb-4",
                     disabled: isLoading,
                     autoFocus: true
@@ -496,7 +496,24 @@ const emptyItemTemplates = {
 };
 
 const OneShotDashboard = ({ oneShot, onUpdate, onAddHero, onUpdateHero, onRemoveHero, onAddMonster, onUpdateMonster, onRemoveMonster, onGenerate, onRewrite, canGenerate }) => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
+    const [isBulkOpen, setIsBulkOpen] = useState(false);
+    const [isBulkLoading, setIsBulkLoading] = useState(false);
+    const [bulkProposal, setBulkProposal] = useState(null);
+    const [bulkError, setBulkError] = useState(null);
+
+    const handleBulkEdit = async instruction => {
+        if (!canGenerate || isBulkLoading) return;
+        setIsBulkLoading(true);
+        setBulkError(null);
+        try {
+            setBulkProposal(await modifyOneShotAdventure(oneShot, instruction, language));
+        } catch (error) {
+            setBulkError(error.message);
+        } finally {
+            setIsBulkLoading(false);
+        }
+    };
 
     const handleStoryArcUpdate = (updatedArc) => {
         const updatedArcs = (oneShot.mainStoryArcs || []).map(arc => arc.id === updatedArc.id ? updatedArc : arc);
@@ -536,8 +553,34 @@ const OneShotDashboard = ({ oneShot, onUpdate, onAddHero, onUpdateHero, onRemove
 
 
     return React.createElement('div', { className: "animate-fade-in pb-8" },
+        isBulkOpen && React.createElement(ModificationModal, {
+            isOpen: true, isLoading: isBulkLoading, error: bulkError,
+            title: t('bulkEditOneShot'), placeholder: t('bulkEditPlaceholder'),
+            onClose: () => setIsBulkOpen(false), onConfirm: handleBulkEdit,
+            onApply: () => { onUpdate(bulkProposal); setIsBulkOpen(false); },
+            preview: bulkProposal && [
+                { label: t('title'), value: bulkProposal.title },
+                ...ONE_SHOT_EDIT_SECTIONS.map(section => ({
+                    label: t(section === 'mainStoryArcs' ? 'mainStoryArc' : sectionConfigs[section].title),
+                    value: React.createElement('details', null,
+                        React.createElement('summary', { className: 'cursor-pointer py-2' }, t('bulkPreviewEntries', { count: bulkProposal[section].length })),
+                        bulkProposal[section].map(item => React.createElement('div', { key: item.id, className: 'space-y-2 border-t border-[var(--border-primary)] py-3' },
+                            Object.entries(item).filter(([key, value]) => key !== 'id' && typeof value === 'string').map(([key, value]) =>
+                                React.createElement('p', { key }, React.createElement('b', null, `${t(sectionConfigs[section]?.fields.find(field => field.key === key)?.label || key)}: `), value)
+                            )
+                        ))
+                    ),
+                })),
+            ],
+        }),
         React.createElement('div', { className: "w-full max-w-4xl mx-auto text-center mt-8" },
-            React.createElement(CampaignNameEditor, { campaign: oneShot, onUpdate: onUpdate, field: 'title' })
+            React.createElement(CampaignNameEditor, { campaign: oneShot, onUpdate: onUpdate, field: 'title' }),
+            React.createElement('button', {
+                disabled: !canGenerate,
+                onClick: () => { setBulkProposal(null); setBulkError(null); setIsBulkOpen(true); },
+                className: 'mt-4 px-4 py-3 rounded-lg bg-[var(--accent-tertiary)] text-white disabled:opacity-50',
+            }, t('bulkEditOneShot')),
+            React.createElement('p', { className: 'mt-2 text-sm text-[var(--text-muted)]' }, t('bulkEditHelp'))
         ),
         React.createElement(HeroManager, { heroes: oneShot.heroes || [], onAddHero, onUpdateHero, onRemoveHero }),
         React.createElement(MonsterManager, { monsters: oneShot.monsters || [], onAddMonster, onUpdateMonster, onRemoveMonster }),

@@ -196,6 +196,64 @@ export function parseOneShotResponse(text, section) {
     return validateGeneratedFields(JSON.parse(text), ONE_SHOT_SCHEMAS[section]);
 }
 
+export const ONE_SHOT_EDIT_SECTIONS = ['mainStoryArcs', 'locations', 'events', 'npcs', 'items'];
+const ONE_SHOT_EDIT_SCHEMA = {
+    type: 'object',
+    properties: {
+        title: { type: 'string' },
+        ...Object.fromEntries(ONE_SHOT_EDIT_SECTIONS.map(section => {
+            const item = ONE_SHOT_ADVENTURE_SCHEMA.properties[section].items;
+            return [section, { type: 'array', items: {
+                ...item,
+                properties: { ...item.properties, id: { type: 'string', description: 'Keep the existing ID; use an empty string for a new entry.' } },
+                required: [...item.required, 'id'],
+            } }];
+        })),
+    },
+    required: ['title', ...ONE_SHOT_EDIT_SECTIONS],
+};
+
+export function parseOneShotEdit(text, current) {
+    const result = validateGeneratedFields(JSON.parse(text), ONE_SHOT_EDIT_SCHEMA);
+    if (!result.title.trim()) throw new Error('The AI returned an empty adventure title.');
+    const updated = { ...current, title: result.title };
+    for (const section of ONE_SHOT_EDIT_SECTIONS) {
+        const existing = current[section] || [];
+        const changes = new Map();
+        const additions = [];
+        for (const item of result[section]) {
+            if (!item.id) additions.push({ ...item, id: crypto.randomUUID() });
+            else {
+                if (changes.has(item.id) || !existing.some(entry => entry.id === item.id)) {
+                    throw new Error('The AI returned an invalid or duplicate entry ID.');
+                }
+                changes.set(item.id, item);
+            }
+        }
+        updated[section] = existing.map(item => ({ ...item, ...changes.get(item.id) })).concat(additions);
+    }
+    if (!updated.mainStoryArcs.length) throw new Error('The adventure must contain a story arc.');
+    return updated;
+}
+
+export async function modifyOneShotAdventure(oneShot, instruction, language) {
+    if (!instruction.trim()) throw new Error('Describe the changes first.');
+    const response = await generateContent({
+        contents: { parts: [{ text: `CURRENT ADVENTURE:\n${JSON.stringify(oneShot)}\n\nUSER INSTRUCTION:\n${instruction}` }] },
+        config: {
+            systemInstruction: `Refine this entire tabletop RPG one-shot coherently according to the user's instruction.
+                Adapt the story arcs, locations, events, NPC motivations and items together; preserve unrelated details.
+                For puzzle-focused requests, provide playable puzzles, clues, solutions and consequences connected to the plot.
+                Keep all existing entry IDs exactly, never swap them. Use id "" only for genuinely new entries.
+                Existing entries omitted from the response are retained. Do not change heroes or monster stat blocks;
+                use them as context. Return all narrative sections and a title, in ${language === 'it' ? 'Italian' : 'English'}.
+                Return only JSON matching the schema.`,
+            responseSchema: ONE_SHOT_EDIT_SCHEMA,
+        },
+    });
+    return parseOneShotEdit(response.text, oneShot);
+}
+
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

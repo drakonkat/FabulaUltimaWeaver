@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { parseMonsterResponse, parseOneShotResponse } from './geminiService.js';
+import { parseMonsterResponse, parseOneShotResponse, parseOneShotEdit } from './geminiService.js';
 
 const original = { id: 'saved-id', name: 'Sentinella', attributes: [{ key: 'HP', value: '24' }], inventory: [{ name: 'Gemma', quantity: '1' }] };
 const modified = parseMonsterResponse(JSON.stringify({ id: 'untrusted-id', name: 'Sentinella', attributes: [{ key: 'HP', value: '24' }, { key: 'Spore', value: 'Velenose' }] }), 'generic', original);
@@ -33,3 +33,30 @@ for (const [section, item] of Object.entries({
 }
 assert.throws(() => parseOneShotResponse('{"eventType":"invalid","description":"x"}', 'events'));
 console.log('Monster and one-shot refinement checks passed.');
+
+const adventure = {
+    id: 'adventure-id', title: 'The Gate', heroes: [{ id: 'hero-id', name: 'Lia' }], monsters: [fabula],
+    mainStoryArcs: [{ id: 'arc-id', title: 'Gate', premise: 'Find it', hook: 'A map', objective: 'Open it', stakes: 'Time', climax: 'A lock', resolution: 'Escape' }],
+    locations: [{ id: 'location-id', name: 'Tower', description: 'Old', notes: 'Keep this custom note' }],
+    events: [], npcs: [], items: [],
+};
+const bulk = {
+    title: 'The Puzzle Gate', mainStoryArcs: [{ ...adventure.mainStoryArcs[0], climax: 'Solve the moon riddle' }],
+    locations: [], events: [{ id: '', eventType: 'puzzle', description: 'Align the moons', clue: 'A mural', outcome: 'Gate opens' }],
+    npcs: [], items: [], heroes: [], monsters: [], id: 'untrusted-id',
+};
+const refined = parseOneShotEdit(JSON.stringify(bulk), adventure);
+assert.equal(refined.id, adventure.id);
+assert.equal(refined.mainStoryArcs[0].id, 'arc-id');
+assert.equal(refined.mainStoryArcs[0].climax, 'Solve the moon riddle');
+assert.deepEqual(refined.locations, adventure.locations);
+assert.deepEqual(refined.heroes, adventure.heroes);
+assert.deepEqual(refined.monsters, adventure.monsters);
+assert.ok(refined.events[0].id);
+assert.equal(adventure.events.length, 0);
+assert.equal(adventure.mainStoryArcs[0].climax, 'A lock');
+assert.throws(() => parseOneShotEdit(JSON.stringify({ ...bulk, mainStoryArcs: [{ ...bulk.mainStoryArcs[0], id: 'unknown' }] }), adventure));
+assert.throws(() => parseOneShotEdit(JSON.stringify({ ...bulk, mainStoryArcs: [bulk.mainStoryArcs[0], bulk.mainStoryArcs[0]] }), adventure));
+assert.throws(() => parseOneShotEdit(JSON.stringify({ ...bulk, locations: null }), adventure));
+assert.throws(() => parseOneShotEdit(JSON.stringify({ ...bulk, title: '' }), adventure));
+console.log('Bulk one-shot refinement checks passed.');

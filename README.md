@@ -87,6 +87,10 @@ You can switch systems anytime; the AI adapts the tone and content accordingly.
   attributes and inventory. Review the draft, then Save/Update; Cancel discards it.
 - One-shot locations, events, NPCs and items also support instruction-based AI
   refinement. Review the preview and select Apply to keep it, or Cancel to discard it.
+- **Edit entire One-Shot with AI**, below the adventure title, adapts the plot,
+  locations, events, NPCs and items together (e.g. "make the plot puzzle-focused").
+  Expand each section in the preview before applying. Existing IDs, custom fields,
+  heroes and monster sheets are preserved; the AI can also add narrative entries.
 - Give your prompt a clear goal: “The party reaches a foggy port city hunting a stolen relic.”
 - Add your party details (name, class, background) to improve NPC hooks.
 - Use continuation mode after each session to keep continuity tight.
