@@ -188,6 +188,14 @@ const ONE_SHOT_ADVENTURE_SCHEMA = {
 };
 
 
+for (const section of ['locations', 'events', 'npcs', 'items']) {
+    ONE_SHOT_SCHEMAS[section] = ONE_SHOT_ADVENTURE_SCHEMA.properties[section].items;
+}
+
+export function parseOneShotResponse(text, section) {
+    return validateGeneratedFields(JSON.parse(text), ONE_SHOT_SCHEMAS[section]);
+}
+
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -427,7 +435,7 @@ export const modifyOneShotContent = async (currentContent, userInstruction, part
 
     try {
         const jsonText = response.text.trim();
-        const parsedData = JSON.parse(jsonText);
+        const parsedData = parseOneShotResponse(jsonText, partToGenerate);
         return parsedData;
     } catch (e) {
         console.error("Failed to parse JSON response for one-shot modification:", response.text);
@@ -609,12 +617,58 @@ const FABULA_MONSTER_SCHEMA = {
     required: ["name", "description", "level", "rank", "species", "attributes", "stats", "basicAttacks"]
 };
 
-export const generateFabulaMonster = async (prompt, language) => {
-    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+const MONSTER_INVENTORY_SCHEMA = {
+    type: 'array', items: {
+        type: 'object', properties: { name: { type: 'string' }, quantity: { type: 'string' } },
+        required: ['name', 'quantity'],
+    },
+};
+const GENERIC_MONSTER_SCHEMA = {
+    type: 'object',
+    properties: {
+        name: { type: 'string' },
+        attributes: { type: 'array', items: {
+            type: 'object', properties: { key: { type: 'string' }, value: { type: 'string' } },
+            required: ['key', 'value'],
+        } },
+        inventory: MONSTER_INVENTORY_SCHEMA,
+    },
+    required: ['name', 'attributes'],
+};
+FABULA_MONSTER_SCHEMA.properties.inventory = MONSTER_INVENTORY_SCHEMA;
 
-    const systemInstruction = `You are an expert game designer for the Fabula Ultima TTRPG. Your task is to generate a balanced, game-ready monster stat block based on the user's description. You must strictly adhere to the provided JSON schema. Ensure all stats (HP, MP, Initiative, etc.) are calculated correctly according to the Fabula Ultima rules for the monster's level, rank, and species. The response MUST be in ${languageInstruction}.`;
+// Validate model output before replacing an editable draft; discard model-supplied IDs.
+function validateGeneratedFields(value, schema) {
+    if (value === null && schema.nullable) return null;
+    const validType = schema.type === 'array' ? Array.isArray(value)
+        : schema.type === 'integer' ? Number.isInteger(value)
+        : schema.type === 'object' ? value !== null && typeof value === 'object' && !Array.isArray(value)
+        : typeof value === schema.type;
+    if (!validType || (schema.enum && !schema.enum.includes(value))) throw new Error('Invalid AI data.');
+    if (schema.type === 'array') return value.map(item => validateGeneratedFields(item, schema.items));
+    if (schema.type !== 'object') return value;
+    if ((schema.required || []).some(key => !Object.hasOwn(value, key))) throw new Error('Incomplete AI data.');
+    return Object.fromEntries(Object.entries(schema.properties).filter(([key]) => Object.hasOwn(value, key))
+        .map(([key, field]) => [key, validateGeneratedFields(value[key], field)]));
+}
+
+export function parseMonsterResponse(text, type, current = {}) {
+    const result = validateGeneratedFields(JSON.parse(text), type === 'fabula' ? FABULA_MONSTER_SCHEMA : GENERIC_MONSTER_SCHEMA);
+    if (!result.name.trim()) throw new Error('The AI monster has no name.');
+    return { ...current, ...result, type, inventory: result.inventory ?? current.inventory ?? [] };
+}
+
+export const generateMonster = async (prompt, language, type = 'generic', current = null) => {
+    if (!prompt.trim()) throw new Error('Describe the monster or the changes first.');
+    const languageInstruction = language === 'it' ? 'Italian' : 'English';
+    const systemInstruction = `You are an expert tabletop RPG game designer. ${type === 'fabula'
+        ? "Use Fabula Ultima rules and calculate statistics for the requested level, rank and species."
+        : "Use the existing monster's game system and stat conventions when available; otherwise create a generic fantasy monster. Put descriptions, attacks, abilities and weaknesses in named attributes."}
+        Return the complete monster matching the JSON schema in ${languageInstruction}.
+        When editing, change only what the user requests and preserve all other attributes, abilities and inventory.
+        Do not invent or return IDs. Inventory quantities must be strings.`;
     
-    const userPrompt = `Generate a Fabula Ultima monster based on this description: "${prompt}".`;
+    const userPrompt = `${current ? `CURRENT MONSTER (including unsaved edits):\n${JSON.stringify(current)}\n\n` : ''}USER REQUEST:\n${prompt}`;
 
     const contents = { parts: [{ text: userPrompt }] };
 
@@ -623,14 +677,12 @@ export const generateFabulaMonster = async (prompt, language) => {
         config: {
             systemInstruction,
             responseMimeType: "application/json",
-            responseSchema: FABULA_MONSTER_SCHEMA,
+            responseSchema: type === 'fabula' ? FABULA_MONSTER_SCHEMA : GENERIC_MONSTER_SCHEMA,
         },
     });
 
     try {
-        const jsonText = response.text.trim();
-        const parsedData = JSON.parse(jsonText);
-        return { ...parsedData, type: 'fabula' };
+        return parseMonsterResponse(response.text.trim(), type, current || {});
     } catch (e) {
         console.error("Failed to parse JSON response for monster generation:", response.text);
         throw new Error("The AI returned an invalid response. Please try again.");

@@ -118,7 +118,7 @@ const NpcChatButton = ({ npc }) => {
     );
 };
 
-const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading }) => {
+const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading, error, preview, onApply }) => {
     const { t } = useTranslation();
     const [instruction, setInstruction] = useState('');
 
@@ -133,15 +133,27 @@ const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading }) => {
 
     return React.createElement('div', {
         className: "fixed inset-0 bg-black/70 z-[100] flex items-center justify-center animate-fade-in",
-        'aria-modal': true, role: "dialog", onClick: onClose
+        'aria-modal': true, role: "dialog", onClick: isLoading ? undefined : onClose
     },
         React.createElement('div', {
-            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-md m-4 border-2 border-[var(--border-accent)]",
+            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-md m-4 max-h-[calc(100dvh-2rem)] overflow-y-auto border-2 border-[var(--border-accent)]",
             onClick: e => e.stopPropagation()
         },
             React.createElement('h3', { className: "text-lg font-bold text-[var(--highlight-secondary)] mb-4" }, t('modifyWithAI')),
+            error && React.createElement('p', { role: 'alert', className: 'mb-3 text-[var(--danger-text)]' }, error),
+            preview ? React.createElement('div', { className: 'space-y-4' },
+                React.createElement('p', null, t('monsterAIReady')),
+                React.createElement('dl', { className: 'space-y-3 break-words' }, preview.map(({ label, value }) =>
+                    React.createElement('div', { key: label }, React.createElement('dt', { className: 'font-bold' }, label), React.createElement('dd', null, value))
+                )),
+                React.createElement('div', { className: 'flex flex-wrap justify-end gap-2' },
+                    React.createElement('button', { onClick: onClose, className: 'px-4 py-2 bg-[var(--bg-tertiary)] rounded' }, t('cancel')),
+                    React.createElement('button', { onClick: onApply, className: 'px-4 py-2 bg-[var(--accent-tertiary)] text-white rounded' }, t('apply'))
+                )
+            ) :
             React.createElement('form', { onSubmit: handleSubmit },
                 React.createElement('textarea', {
+                    'aria-label': t('modificationPrompt'),
                     value: instruction,
                     onChange: e => setInstruction(e.target.value),
                     placeholder: t('modificationPlaceholder'),
@@ -341,8 +353,25 @@ const SectionManager = ({ title, items, children }) => {
 };
 
 const EditableCard = ({ item, fieldsConfig, onUpdate, onRemove, onRewrite, canGenerate, sectionKey }) => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const [isRewriting, setIsRewriting] = useState({});
+    const [isModifying, setIsModifying] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [proposal, setProposal] = useState(null);
+    const [aiError, setAiError] = useState(null);
+
+    const handleModify = async instruction => {
+        if (!canGenerate || isGenerating) return;
+        setIsGenerating(true);
+        setAiError(null);
+        try {
+            setProposal(await modifyOneShotContent(item, instruction, sectionKey, language));
+        } catch (error) {
+            setAiError(error.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const handleFieldChange = (key, value) => {
         onUpdate({ ...item, [key]: value });
@@ -359,7 +388,18 @@ const EditableCard = ({ item, fieldsConfig, onUpdate, onRemove, onRewrite, canGe
     };
 
     return React.createElement('div', { className: 'p-4 bg-[var(--bg-primary)]/70 rounded-lg border border-[var(--border-secondary)]' },
-        React.createElement('div', { className: 'flex justify-end items-center mb-2 -mt-2 -mr-2' },
+        isModifying && React.createElement(ModificationModal, {
+            isOpen: true, isLoading: isGenerating, error: aiError,
+            onClose: () => setIsModifying(false), onConfirm: handleModify,
+            preview: proposal && fieldsConfig.filter(field => Object.hasOwn(proposal, field.key)).map(field => ({ label: t(field.label), value: field.type === 'select' ? t(proposal[field.key]) : proposal[field.key] })),
+            onApply: () => { onUpdate({ ...item, ...proposal, id: item.id }); setIsModifying(false); },
+        }),
+        React.createElement('div', { className: 'flex flex-wrap gap-2 justify-end items-center mb-2 -mt-2 -mr-2' },
+            React.createElement('button', {
+                disabled: !canGenerate || Object.values(isRewriting).some(Boolean),
+                onClick: () => { setProposal(null); setAiError(null); setIsModifying(true); },
+                className: 'px-3 py-2 rounded-lg bg-[var(--accent-tertiary)] text-white disabled:opacity-50',
+            }, t('monsterAIInstruction')),
             sectionKey === 'npcs' && React.createElement(NpcChatButton, { npc: item }),
             React.createElement('button', { onClick: () => onRemove(item.id), 'aria-label': t('remove'), className: 'p-1.5 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors' },
                 React.createElement(TrashIcon)

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
-import { generateFabulaMonster } from '../services/geminiService.js';
+import { generateMonster } from '../services/geminiService.js';
 
 const SkullIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6 text-[var(--highlight-secondary)]", viewBox: "0 0 20 20", fill: "currentColor" },
     React.createElement('path', { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zM5.5 8.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zm5 0a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM10 12a4 4 0 00-4 4 .5.5 0 00.5.5h7a.5.5 0 00.5-.5 4 4 0 00-4-4z", clipRule: "evenodd" })
@@ -131,6 +131,9 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
     const [editingMonster, setEditingMonster] = useState(null);
     const [monsterType, setMonsterType] = useState('generic'); // 'generic' or 'fabula'
     const [isGenerating, setIsGenerating] = useState(false);
+    const [aiInstruction, setAiInstruction] = useState('');
+    const [aiError, setAiError] = useState(null);
+    const [aiReady, setAiReady] = useState(false);
 
     // Generic State
     const [name, setName] = useState('');
@@ -150,6 +153,9 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
     });
 
     const resetForm = () => {
+        setAiInstruction('');
+        setAiError(null);
+        setAiReady(false);
         setName('');
         setAttributes([]);
         setInventory([]);
@@ -167,6 +173,9 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
     };
 
     useEffect(() => {
+        setAiInstruction('');
+        setAiError(null);
+        setAiReady(false);
         if (editingMonster) {
             setName(editingMonster.name);
             setInventory((editingMonster.inventory || []).map(i => ({ ...i, id: crypto.randomUUID() })));
@@ -227,16 +236,31 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
         );
     };
     
+    const getDraft = () => ({
+        ...editingMonster,
+        ...(monsterType === 'fabula' ? fabulaData : {
+            attributes: attributes.filter(s => s.key.trim()).map(({ id, ...attr }) => attr),
+        }),
+        name: name.trim(),
+        type: monsterType,
+        inventory: inventory.filter(i => i.name.trim()).map(({ id, ...item }) => item),
+    });
+
     const handleGenerateAI = async () => {
-        if (!name.trim()) return;
+        const instruction = aiInstruction.trim() || (!editingMonster ? name.trim() : '');
+        if (!instruction || isGenerating) return;
         setIsGenerating(true);
+        setAiError(null);
+        setAiReady(false);
         try {
-             const generatedData = await generateFabulaMonster(name + (fabulaData.description ? ` (${fabulaData.description})` : ''), language);
-             if (generatedData) {
-                 setName(generatedData.name);
-                 setFabulaData(prev => ({ ...prev, ...generatedData }));
-             }
+             const generatedData = await generateMonster(instruction, language, monsterType, getDraft());
+             setName(generatedData.name);
+             setInventory(generatedData.inventory.map(item => ({ ...item, id: crypto.randomUUID() })));
+             if (monsterType === 'fabula') setFabulaData(generatedData);
+             else setAttributes(generatedData.attributes.map(attr => ({ ...attr, id: crypto.randomUUID() })));
+             setAiReady(true);
         } catch (e) {
+            setAiError(e.message);
             console.error("Failed to generate monster", e);
         } finally {
             setIsGenerating(false);
@@ -246,22 +270,9 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (isGenerating) return;
         if (name.trim()) {
-            const finalInventory = inventory
-                .filter(i => i.name.trim() !== '')
-                .map(({ id, ...rest }) => rest);
-
-            let monsterData = { name, inventory: finalInventory };
-
-            if (monsterType === 'generic') {
-                 const finalAttributes = attributes
-                    .filter(s => s.key.trim() !== '')
-                    .map(({ id, ...rest }) => rest);
-                 monsterData.attributes = finalAttributes;
-                 monsterData.type = 'generic';
-            } else {
-                 monsterData = { ...monsterData, ...fabulaData, type: 'fabula' };
-            }
+            const monsterData = getDraft();
 
             if (editingMonster) {
                 onUpdateMonster({ ...editingMonster, ...monsterData });
@@ -303,13 +314,8 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
         };
 
         return React.createElement('div', { className: 'space-y-4 border-t border-[var(--border-primary)] pt-4' },
-            React.createElement('div', { className: 'flex justify-end' },
-                React.createElement('button', {
-                    type: 'button',
-                    onClick: handleGenerateAI,
-                    disabled: !name.trim() || isGenerating,
-                    className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors disabled:opacity-50"
-                }, isGenerating ? t('generating') : React.createElement(React.Fragment, null, React.createElement(SparklesIcon), t('generateMonster')))
+            React.createElement('label', { className: 'block' }, t('description'),
+                React.createElement('textarea', { value: fabulaData.description || '', onChange: e => setFabulaData(p => ({ ...p, description: e.target.value })), className: 'w-full p-2 h-24 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)]' })
             ),
             React.createElement('div', {className: 'grid grid-cols-2 gap-4'},
                 React.createElement('div', null,
@@ -341,7 +347,7 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
                     )
                 ))
             ),
-            React.createElement('div', {className: 'grid grid-cols-5 gap-2'},
+            React.createElement('div', {className: 'grid grid-cols-2 sm:grid-cols-5 gap-2'},
                 Object.entries({ hp: 'HP', mp: 'MP', init: t('init'), def: 'DEF', mdef: 'M.DEF' }).map(([key, label]) => React.createElement('div', {key},
                     React.createElement('label', {className: 'block text-xs font-bold text-center mb-1'}, label),
                     React.createElement('input', { type: 'number', value: fabulaData.stats[key], onChange: e => setFabulaData(p => ({...p, stats: {...p.stats, [key]: parseInt(e.target.value)||0}})), className: "w-full p-1 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] text-center" })
@@ -390,7 +396,7 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
             ),
             // Spells Section
             React.createElement('div', { className: 'border-t border-[var(--border-primary)] pt-4' },
-                React.createElement('div', { className: 'flex justify-between items-center mb-2' },
+                React.createElement('div', { className: 'flex flex-wrap justify-between items-center gap-2 mb-2' },
                      React.createElement('h4', { className: 'text-sm font-bold' }, t('spells')),
                      React.createElement('button', { type: 'button', onClick: handleAddSpell, className: 'flex items-center px-2 py-1 text-xs rounded bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white' }, React.createElement(PlusIcon), t('addSpell'))
                 ),
@@ -415,7 +421,7 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
             ),
              // Special Rules Section
              React.createElement('div', { className: 'border-t border-[var(--border-primary)] pt-4' },
-                React.createElement('div', { className: 'flex justify-between items-center mb-2' },
+                React.createElement('div', { className: 'flex flex-wrap justify-between items-center gap-2 mb-2' },
                      React.createElement('h4', { className: 'text-sm font-bold' }, t('specialRules')),
                      React.createElement('button', { type: 'button', onClick: handleAddRule, className: 'flex items-center px-2 py-1 text-xs rounded bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white' }, React.createElement(PlusIcon), t('addRule'))
                 ),
@@ -431,22 +437,39 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
     };
 
     const form = React.createElement('form', { onSubmit: handleSubmit, className: "p-4 mb-4 bg-[var(--bg-primary)]/50 rounded-lg border border-[var(--border-secondary)] animate-fade-in flex flex-col gap-4" },
+      React.createElement('fieldset', { disabled: isGenerating, className: 'min-w-0 flex flex-col gap-4', 'aria-busy': isGenerating },
         React.createElement('h3', { className: "text-xl font-semibold text-[var(--accent-primary)]" }, editingMonster ? t('editMonsterTitle') : t('addMonsterTitle')),
+        React.createElement('div', { className: 'space-y-2' },
+            React.createElement('label', { htmlFor: 'monster-ai-instruction', className: 'block font-semibold' }, t('monsterAIInstruction')),
+            React.createElement('textarea', {
+                id: 'monster-ai-instruction', value: aiInstruction, onChange: e => setAiInstruction(e.target.value),
+                placeholder: t('monsterAIPlaceholder'),
+                className: 'w-full p-3 h-24 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)]',
+            }),
+            React.createElement('button', {
+                type: 'button', onClick: handleGenerateAI,
+                disabled: isGenerating || !(aiInstruction.trim() || (!editingMonster && name.trim())),
+                className: 'flex items-center px-4 py-2 rounded-lg bg-[var(--accent-tertiary)] text-white disabled:opacity-50',
+            }, React.createElement(SparklesIcon), isGenerating ? t('generating') : t(editingMonster || aiReady ? 'modifyWithAI' : 'generateMonster')),
+            React.createElement('p', { className: 'text-sm text-[var(--text-muted)]' }, t('monsterAIReview')),
+            aiReady && React.createElement('p', { role: 'status', className: 'text-sm text-[var(--accent-primary)]' }, t('monsterAIReady')),
+            aiError && React.createElement('p', { role: 'alert', className: 'text-sm text-[var(--danger-text)]' }, aiError),
+        ),
         
-        React.createElement('div', {className: 'flex gap-4'},
+        React.createElement('div', {className: 'flex flex-col sm:flex-row gap-4'},
             React.createElement('div', {className: 'flex-grow'},
                  React.createElement('input', { type: "text", placeholder: t('monsterNamePlaceholder'), value: name, onChange: e => setName(e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)]", required: true }),
             ),
-            React.createElement('select', { value: monsterType, onChange: e => setMonsterType(e.target.value), className: "p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)]" },
+            React.createElement('select', { 'aria-label': t('characterType'), value: monsterType, onChange: e => setMonsterType(e.target.value), className: "p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)]" },
                 React.createElement('option', { value: 'generic' }, t('generic')),
                 React.createElement('option', { value: 'fabula' }, t('fabulaUltimaCharacter'))
             )
         ),
         
-        monsterType === 'fabula' ? React.createElement(FabulaForm) : 
+        monsterType === 'fabula' ? FabulaForm() :
         // Attributes Section (Generic)
         React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
-            React.createElement('div', { className: "flex justify-between items-center mb-2" },
+            React.createElement('div', { className: "flex flex-wrap justify-between items-center gap-2 mb-2" },
                 React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('attributes')),
                 React.createElement('button', { type: "button", onClick: handleAddAttribute, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors" },
                     React.createElement(PlusIcon, null), t('addAttribute')
@@ -463,14 +486,14 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
 
         // Inventory Section
         React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
-            React.createElement('div', { className: "flex justify-between items-center mb-2" },
+            React.createElement('div', { className: "flex flex-wrap justify-between items-center gap-2 mb-2" },
                 React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('inventory')),
                 React.createElement('button', { type: "button", onClick: handleAddItem, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors" },
                     React.createElement(PlusIcon, null), t('addItem')
                 )
             ),
             React.createElement('div', { className: "space-y-2 max-h-48 overflow-y-auto pr-2" },
-                inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-[1fr_80px_auto] items-center gap-2" },
+                inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-[minmax(0,1fr)_4rem_auto] items-center gap-2" },
                     React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: item.name, onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] text-sm" }),
                     React.createElement('input', { type: "text", placeholder: t('quantityPlaceholder'), value: item.quantity, onChange: e => handleItemChange(item.id, 'quantity', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] focus:ring-[var(--border-accent-light)] text-sm" }),
                     React.createElement('button', { type: "button", onClick: () => handleRemoveItem(item.id), 'aria-label': "Remove Item", className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors" }, React.createElement(TrashIcon, null))
@@ -478,18 +501,19 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
             )
         ),
         
-        React.createElement('div', { className: "flex justify-end gap-4 mt-4" },
+        React.createElement('div', { className: "flex flex-wrap justify-end gap-4 mt-4" },
             React.createElement('button', { type: "button", onClick: handleCancel, className: "px-6 py-2 font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] transition-colors" }, t('cancel')),
             React.createElement('button', { type: "submit", className: "px-6 py-2 font-bold text-white rounded-lg bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] hover:from-[var(--highlight-primary-to)] hover:to-[var(--highlight-primary-from)]" }, editingMonster ? t('updateMonster') : t('saveMonster'))
         )
+      )
     );
 
     const MonsterCard = ({ monster }) => {
         if (monster.type === 'fabula') {
             return React.createElement('div', { className: "mb-4" },
                 React.createElement('div', { className: "flex justify-end gap-2 mb-1" },
-                    React.createElement('button', { onClick: () => setEditingMonster(monster), className: "p-1 text-blue-400 hover:text-blue-300" }, React.createElement(PencilIcon, null)),
-                    React.createElement('button', { onClick: () => onRemoveMonster(monster.id), className: "p-1 text-[var(--danger)]/80 hover:text-[var(--danger)]" }, React.createElement(TrashIcon, null))
+                    React.createElement('button', { disabled: isGenerating, 'aria-label': `${t('edit')} ${monster.name}`, onClick: () => setEditingMonster(monster), className: "p-1 text-blue-400 hover:text-blue-300" }, React.createElement(PencilIcon, null)),
+                    React.createElement('button', { disabled: isGenerating, 'aria-label': `${t('remove')} ${monster.name}`, onClick: () => onRemoveMonster(monster.id), className: "p-1 text-[var(--danger)]/80 hover:text-[var(--danger)]" }, React.createElement(TrashIcon, null))
                 ),
                 React.createElement(FabulaStatBlock, { monster })
             );
@@ -499,8 +523,8 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
             React.createElement('div', { className: "flex justify-between items-start" },
                 React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, monster.name),
                 React.createElement('div', { className: "flex-shrink-0 flex gap-2" },
-                    React.createElement('button', { onClick: () => setEditingMonster(monster), className: "p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/50 rounded-full transition-colors duration-200", 'aria-label': `${t('edit')} ${monster.name}` }, React.createElement(PencilIcon, null)),
-                    React.createElement('button', { onClick: () => onRemoveMonster(monster.id), className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200", 'aria-label': `${t('remove')} ${monster.name}` }, React.createElement(TrashIcon, null))
+                    React.createElement('button', { disabled: isGenerating, onClick: () => setEditingMonster(monster), className: "p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/50 rounded-full transition-colors duration-200", 'aria-label': `${t('edit')} ${monster.name}` }, React.createElement(PencilIcon, null)),
+                    React.createElement('button', { disabled: isGenerating, onClick: () => onRemoveMonster(monster.id), className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200", 'aria-label': `${t('remove')} ${monster.name}` }, React.createElement(TrashIcon, null))
                 )
             ),
             React.createElement('div', { className: "flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-[var(--text-secondary)]" },

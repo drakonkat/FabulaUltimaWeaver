@@ -82,6 +82,11 @@ for the AI client checks and `npm run build` to verify the static bundle.
 You can switch systems anytime; the AI adapts the tone and content accordingly.
 
 ## Tips for best results
+- In the monster editor, use **Create or refine with AI** for generic or Fabula Ultima
+  monsters. Describe a new creature or request changes to the current form, including
+  attributes and inventory. Review the draft, then Save/Update; Cancel discards it.
+- One-shot locations, events, NPCs and items also support instruction-based AI
+  refinement. Review the preview and select Apply to keep it, or Cancel to discard it.
 - Give your prompt a clear goal: “The party reaches a foggy port city hunting a stolen relic.”
 - Add your party details (name, class, background) to improve NPC hooks.
 - Use continuation mode after each session to keep continuity tight.
