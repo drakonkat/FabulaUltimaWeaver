@@ -58,13 +58,13 @@ const CampaignList = ({ campaigns, onSelect, onDelete, onNew, canCreate, onLoadE
                         key: campaign.id,
                         className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex justify-between items-center gap-4 hover:bg-[var(--bg-primary)]/90 hover:border-[var(--border-accent-light)] transition-all duration-200"
                     },
-                        React.createElement('div', { className: "flex-grow cursor-pointer", onClick: () => onSelect(campaign.id) },
+                        React.createElement('div', { className: "flex-grow min-w-0 break-words cursor-pointer", onClick: () => onSelect(campaign.id) },
                             React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, campaign.name),
                             React.createElement('p', { className: "text-sm text-[var(--text-subtle)]" }, `${t('lastModified')}: ${formatDate(campaign.lastModified)}`)
                         ),
                         React.createElement('button', {
                             onClick: (e) => { e.stopPropagation(); onDelete(campaign.id); },
-                            className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200",
+                            className: "shrink-0 p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200",
                             'aria-label': `${t('deleteCampaign')} ${campaign.name}`
                         },
                             React.createElement(TrashIcon, null)

@@ -5,7 +5,7 @@ import LanguageSwitcher from './LanguageSwitcher.js';
 import ThemeSwitcher from './ThemeSwitcher.js';
 import { useTranslation } from '../hooks/useTranslation.js';
 
-const SwordIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-8 w-8 text-[var(--highlight-secondary)]", viewBox: "0 0 24 24", fill: "currentColor" },
+const SwordIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "hidden sm:block h-8 w-8 shrink-0 text-[var(--highlight-secondary)]", viewBox: "0 0 24 24", fill: "currentColor", 'aria-hidden': true },
     React.createElement('path', { d: "M14.83,4.17l-2.83,2.83L14.83,9.83,16.24,8.41,18.41,6.24,19.83,4.83,18.41,3.41,14.83,4.17M13.41,5.59,4.41,14.59,2,17v5h5l2.41-2.41,9-9L13.41,5.59z" })
 );
 
@@ -47,12 +47,12 @@ const Header = ({ onBack, showBack, user, onSignOut, onOpenBackupModal, onOpenOn
   return React.createElement('header', { className: "flex bg-[var(--bg-secondary)]/80 backdrop-blur-sm shadow-lg shadow-[var(--accent-tertiary)]/10 py-3 px-4 sm:px-8 border-b-2 border-[var(--border-accent)] sticky top-0 z-50" },
     React.createElement('div', { className: "container mx-auto flex items-center justify-between" },
       React.createElement('div', { className: "flex-1" },
-        showBack ? React.createElement('button', { onClick: onBack, className: "flex items-center px-3 py-2 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors duration-300" },
+        showBack ? React.createElement('button', { onClick: onBack, 'aria-label': t('backToList'), className: "flex items-center min-h-11 min-w-11 px-3 py-2 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors duration-300" },
           React.createElement(BackIcon, null),
           React.createElement('span', { className: 'hidden sm:inline' }, t('backToList'))
         ) : React.createElement('div', { className: 'w-10' })
       ),
-      React.createElement('div', { className: "flex items-center justify-center gap-2 sm:gap-4 flex-shrink-0" },
+      React.createElement('div', { className: "flex items-center justify-center gap-2 sm:gap-4 min-w-0" },
         React.createElement(SwordIcon, null),
         React.createElement('h1', { className: "text-xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--highlight-primary-from)] to-[var(--highlight-primary-to)] tracking-wider text-center", style: { fontFamily: 'serif' } },
           t('appName')

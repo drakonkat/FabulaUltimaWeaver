@@ -1,34 +1,29 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { generateContent } from './aiClient.js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { fabulaClasses, fabulaClassDetails } from '../data/fabulaUltimaData.js';
 import { translations } from '../i18n/locales.js';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const STORY_GENERATION_SCHEMA = {
-  type: Type.OBJECT,
+  type: 'object',
   properties: {
     storyName: {
-      type: Type.STRING,
+      type: 'string',
       description: "The evocative and engaging name for this story or quest, in the style of the selected TTRPG system.",
     },
     NPC: {
-      type: Type.ARRAY,
+      type: 'array',
       description: "A list of Non-Player Characters involved in the story. Must include at least one NPC.",
       items: {
-        type: Type.OBJECT,
+        type: 'object',
         properties: {
           name: {
-            type: Type.STRING,
+            type: 'string',
             description: "The full name of the NPC. Should sound like a name from the selected TTRPG's setting (e.g., JRPG-style for Fabula Ultima, classic fantasy for D&D).",
           },
           description: {
-            type: Type.STRING,
+            type: 'string',
             description: "A detailed description of the NPC's appearance, personality, motivations, and role in the story.",
           },
         },
@@ -36,35 +31,35 @@ const STORY_GENERATION_SCHEMA = {
       },
     },
     backgroundStory: {
-      type: Type.STRING,
+      type: 'string',
       description: "The detailed background and lore of the current situation or quest. This provides context for the GM.",
     },
     mustCombat: {
-      type: Type.OBJECT,
+      type: 'object',
       nullable: true,
       description: "Details of a potential combat encounter. If no combat is necessary or directly implied by the prompt, this field must be null.",
       properties: {
         who: {
-          type: Type.STRING,
+          type: 'string',
           description: "Who or what the players must fight (e.g., 'a squadron of imperial soldiers', 'a rabid griffin').",
         },
         difficulty: {
-          type: Type.STRING,
+          type: 'string',
           description: "The difficulty level of the combat encounter.",
           enum: ["high", "normal", "low"],
         },
       },
     },
     previousSituation: {
-      type: Type.STRING,
+      type: 'string',
       description: "A summary of the events that led directly to the start of this scenario. What just happened to the players?",
     },
     masterToRead: {
-      type: Type.STRING,
+      type: 'string',
       description: "A block of text intended to be read aloud by the Game Master to the players to set the scene. It should be immersive and descriptive.",
     },
     worldSituationUpdate: {
-        type: Type.STRING,
+        type: 'string',
         nullable: true,
         description: "If the world has changed significantly (e.g., due to the passage of time or major events), describe those changes here. If not, this field must be null."
     }
@@ -74,15 +69,15 @@ const STORY_GENERATION_SCHEMA = {
 
 const ONE_SHOT_SCHEMAS = {
     mainStoryArc: {
-        type: Type.OBJECT,
+        type: 'object',
         properties: {
-            title: { type: Type.STRING, description: "An evocative title for the one-shot adventure." },
-            premise: { type: Type.STRING, description: "A one-sentence summary of the adventure." },
-            hook: { type: Type.STRING, description: "How the players get involved in the story." },
-            objective: { type: Type.STRING, description: "The primary, clear goal for the players." },
-            stakes: { type: Type.STRING, description: "What happens if the players fail their objective." },
-            climax: { type: Type.STRING, description: "The final confrontation or peak event of the story." },
-            resolution: { type: Type.STRING, description: "The potential outcomes and aftermath of the adventure." },
+            title: { type: 'string', description: "An evocative title for the one-shot adventure." },
+            premise: { type: 'string', description: "A one-sentence summary of the adventure." },
+            hook: { type: 'string', description: "How the players get involved in the story." },
+            objective: { type: 'string', description: "The primary, clear goal for the players." },
+            stakes: { type: 'string', description: "What happens if the players fail their objective." },
+            climax: { type: 'string', description: "The final confrontation or peak event of the story." },
+            resolution: { type: 'string', description: "The potential outcomes and aftermath of the adventure." },
         },
         required: ['title', 'premise', 'hook', 'objective', 'stakes', 'climax', 'resolution'],
     },
@@ -90,96 +85,96 @@ const ONE_SHOT_SCHEMAS = {
 };
 
 const ONE_SHOT_ADVENTURE_SCHEMA = {
-    type: Type.OBJECT,
+    type: 'object',
     properties: {
-        title: { type: Type.STRING, description: "An evocative and engaging title for the entire one-shot adventure." },
+        title: { type: 'string', description: "An evocative and engaging title for the entire one-shot adventure." },
         mainStoryArcs: {
-            type: Type.ARRAY,
+            type: 'array',
             description: "The main plot of the adventure, broken into one or more sequential story arcs. Must contain at least one arc.",
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    title: { type: Type.STRING, description: "A title for this specific part of the story." },
-                    premise: { type: Type.STRING, description: "A one-sentence summary of this story arc." },
-                    hook: { type: Type.STRING, description: "How this arc begins or connects from the previous one." },
-                    objective: { type: Type.STRING, description: "The clear goal for the players in this arc." },
-                    stakes: { type: Type.STRING, description: "What's at risk in this part of the adventure." },
-                    climax: { type: Type.STRING, description: "The peak event or confrontation for this arc." },
-                    resolution: { type: Type.STRING, description: "How this arc concludes and leads to the next, or the end of the adventure." },
+                    title: { type: 'string', description: "A title for this specific part of the story." },
+                    premise: { type: 'string', description: "A one-sentence summary of this story arc." },
+                    hook: { type: 'string', description: "How this arc begins or connects from the previous one." },
+                    objective: { type: 'string', description: "The clear goal for the players in this arc." },
+                    stakes: { type: 'string', description: "What's at risk in this part of the adventure." },
+                    climax: { type: 'string', description: "The peak event or confrontation for this arc." },
+                    resolution: { type: 'string', description: "How this arc concludes and leads to the next, or the end of the adventure." },
                 },
                 required: ['title', 'premise', 'hook', 'objective', 'stakes', 'climax', 'resolution'],
             },
         },
         locations: {
-            type: Type.ARRAY,
+            type: 'array',
             description: "Key locations the players will visit. Should include at least two distinct locations.",
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    name: { type: Type.STRING },
-                    description: { type: Type.STRING, description: "A sensory, evocative description of the location." },
-                    keyFeatures: { type: Type.STRING, description: "Important interactive elements, secrets, or features, separated by commas." },
+                    name: { type: 'string' },
+                    description: { type: 'string', description: "A sensory, evocative description of the location." },
+                    keyFeatures: { type: 'string', description: "Important interactive elements, secrets, or features, separated by commas." },
                 },
                 required: ['name', 'description'],
             },
         },
         events: {
-            type: Type.ARRAY,
+            type: 'array',
             description: "Scripted events or potential encounters. Should include a mix of types (combat, social, puzzle).",
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    eventType: { type: Type.STRING, enum: ['social', 'combat', 'puzzle', 'exploration'] },
-                    description: { type: Type.STRING, description: "What happens during this event." },
-                    clue: { type: Type.STRING, description: "Information or clues gained from this event." },
-                    outcome: { type: Type.STRING, description: "Potential outcomes based on player success or failure." },
+                    eventType: { type: 'string', enum: ['social', 'combat', 'puzzle', 'exploration'] },
+                    description: { type: 'string', description: "What happens during this event." },
+                    clue: { type: 'string', description: "Information or clues gained from this event." },
+                    outcome: { type: 'string', description: "Potential outcomes based on player success or failure." },
                 },
                 required: ['eventType', 'description'],
             },
         },
         npcs: {
-            type: Type.ARRAY,
+            type: 'array',
             description: "Important Non-Player Characters. Must include at least one quest giver and one antagonist.",
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    name: { type: Type.STRING },
-                    role: { type: Type.STRING, description: "The NPC's role in the story (e.g., Quest Giver, Villain, Ally, Obstacle)." },
-                    keyCharacteristic: { type: Type.STRING, description: "A defining personality trait or mannerism." },
-                    motivation: { type: Type.STRING, description: "What this character wants." },
-                    keyInformation: { type: Type.STRING, description: "Crucial knowledge they possess." },
+                    name: { type: 'string' },
+                    role: { type: 'string', description: "The NPC's role in the story (e.g., Quest Giver, Villain, Ally, Obstacle)." },
+                    keyCharacteristic: { type: 'string', description: "A defining personality trait or mannerism." },
+                    motivation: { type: 'string', description: "What this character wants." },
+                    keyInformation: { type: 'string', description: "Crucial knowledge they possess." },
                 },
                 required: ['name', 'role', 'keyCharacteristic', 'motivation'],
             },
         },
         items: {
-            type: Type.ARRAY,
+            type: 'array',
             description: "Key items or rewards in the adventure.",
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    name: { type: Type.STRING },
-                    itemType: { type: Type.STRING, enum: ['artifact', 'consumable', 'loot', 'keyItem'] },
-                    effect: { type: Type.STRING, description: "The item's description and mechanical/narrative effect." },
-                    locationFound: { type: Type.STRING, description: "Where this item can be found." },
+                    name: { type: 'string' },
+                    itemType: { type: 'string', enum: ['artifact', 'consumable', 'loot', 'keyItem'] },
+                    effect: { type: 'string', description: "The item's description and mechanical/narrative effect." },
+                    locationFound: { type: 'string', description: "Where this item can be found." },
                 },
                 required: ['name', 'itemType', 'effect'],
             },
         },
         monsters: {
-            type: Type.ARRAY,
+            type: 'array',
             description: "A small list of potential monsters or enemies players might face, with simple stats.",
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    name: { type: Type.STRING },
+                    name: { type: 'string' },
                     attributes: {
-                        type: Type.ARRAY,
+                        type: 'array',
                         items: {
-                            type: Type.OBJECT,
+                            type: 'object',
                             properties: {
-                                key: { type: Type.STRING },
-                                value: { type: Type.STRING },
+                                key: { type: 'string' },
+                                value: { type: 'string' },
                             },
                             required: ['key', 'value']
                         }
@@ -221,7 +216,6 @@ export const generateStory = async (
     campaignTone = 'High Fantasy',
     continuationDetails
 ) => {
-  const model = 'gemini-2.5-flash';
   const languageInstruction = language === 'it' ? 'Italian' : 'English';
 
   let gameSystemInstruction;
@@ -307,8 +301,7 @@ export const generateStory = async (
 
   const contents = { parts: requestParts };
 
-  const response = await ai.models.generateContent({
-    model,
+  const response = await generateContent({
     contents,
     config: {
       systemInstruction,
@@ -328,7 +321,6 @@ export const generateStory = async (
 };
 
 export const rewriteText = async (textToRewrite, language) => {
-    const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
     
     const systemInstruction = `You are a helpful assistant for a tabletop RPG player. Your task is to rewrite the provided text to be more narrative, evocative, and well-organized. Enhance the prose and style, but preserve all the key information, names, and events. The output should be only the rewritten text, in ${languageInstruction}.`;
@@ -337,8 +329,7 @@ export const rewriteText = async (textToRewrite, language) => {
     
     const contents = { parts: [{ text: fullPrompt }] };
 
-    const response = await ai.models.generateContent({
-        model,
+    const response = await generateContent({
         contents,
         config: {
             systemInstruction,
@@ -349,7 +340,6 @@ export const rewriteText = async (textToRewrite, language) => {
 };
 
 export const generateCharacterBackground = async (race, heroClass, language) => {
-    const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
 
     const systemInstruction = `You are an expert storyteller for tabletop RPGs. Your task is to generate a brief, compelling, two-sentence background story for a character. The response must be ONLY the background text and nothing else. The response must be in ${languageInstruction}.`;
@@ -358,8 +348,7 @@ export const generateCharacterBackground = async (race, heroClass, language) => 
 
     const contents = { parts: [{ text: fullPrompt }] };
 
-    const response = await ai.models.generateContent({
-        model,
+    const response = await generateContent({
         contents,
         config: {
             systemInstruction,
@@ -370,7 +359,6 @@ export const generateCharacterBackground = async (race, heroClass, language) => 
 };
 
 export const generateOneShotContent = async (partToGenerate, oneShotContext, language) => {
-    const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
     const schema = ONE_SHOT_SCHEMAS[partToGenerate];
 
@@ -387,8 +375,7 @@ export const generateOneShotContent = async (partToGenerate, oneShotContext, lan
 
     const contents = { parts: [{ text: prompt }] };
 
-    const response = await ai.models.generateContent({
-        model,
+    const response = await generateContent({
         contents,
         config: {
             systemInstruction,
@@ -408,7 +395,6 @@ export const generateOneShotContent = async (partToGenerate, oneShotContext, lan
 };
 
 export const modifyOneShotContent = async (currentContent, userInstruction, partToGenerate, language) => {
-    const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
     const schema = ONE_SHOT_SCHEMAS[partToGenerate];
 
@@ -430,8 +416,7 @@ export const modifyOneShotContent = async (currentContent, userInstruction, part
 
     const contents = { parts: [{ text: prompt }] };
 
-    const response = await ai.models.generateContent({
-        model,
+    const response = await generateContent({
         contents,
         config: {
             systemInstruction,
@@ -451,7 +436,6 @@ export const modifyOneShotContent = async (currentContent, userInstruction, part
 };
 
 export const chatWithNpc = async (npc, chatHistory, language) => {
-    const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
 
     const npcProfile = `
@@ -486,12 +470,10 @@ export const chatWithNpc = async (npc, chatHistory, language) => {
         throw new Error("Chat history cannot be empty.");
     }
 
-    const response = await ai.models.generateContent({
-        model,
+    const response = await generateContent({
         contents,
         config: {
             systemInstruction,
-            thinkingConfig: { thinkingBudget: 0 }
         },
     });
 
@@ -499,7 +481,6 @@ export const chatWithNpc = async (npc, chatHistory, language) => {
 };
 
 export const generateOneShotAdventure = async (params, language) => {
-    const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
 
     const systemInstruction = `You are a creative and expert Game Master for tabletop RPGs. Your task is to generate a complete, playable, and well-structured one-shot adventure based on the user-provided parameters. You must adhere strictly to the provided JSON schema and fill all fields with rich, thematic content. Your entire response, including all text in the JSON output, MUST be in ${languageInstruction}. The adventure should be coherent, engaging, and ready to be played.`;
@@ -517,8 +498,7 @@ export const generateOneShotAdventure = async (params, language) => {
 
     const contents = { parts: [{ text: prompt }] };
 
-    const response = await ai.models.generateContent({
-        model,
+    const response = await generateContent({
         contents,
         config: {
             systemInstruction,
@@ -538,89 +518,89 @@ export const generateOneShotAdventure = async (params, language) => {
 };
 
 const FABULA_MONSTER_SCHEMA = {
-    type: Type.OBJECT,
+    type: 'object',
     properties: {
-        name: { type: Type.STRING, description: "Name of the monster." },
-        description: { type: Type.STRING, description: "Brief description of the monster." },
-        traits: { type: Type.STRING, description: "Typical traits of the monster (e.g. intelligent, aggressive, flying)." },
-        level: { type: Type.INTEGER, description: "Level of the monster (5-60)." },
-        rank: { type: Type.STRING, enum: ["soldier", "elite", "champion"], description: "Rank of the monster." },
-        species: { type: Type.STRING, enum: ["beast", "construct", "demon", "elemental", "monster", "plant", "undead", "humanoid"], description: "Species of the monster." },
+        name: { type: 'string', description: "Name of the monster." },
+        description: { type: 'string', description: "Brief description of the monster." },
+        traits: { type: 'string', description: "Typical traits of the monster (e.g. intelligent, aggressive, flying)." },
+        level: { type: 'integer', description: "Level of the monster (5-60)." },
+        rank: { type: 'string', enum: ["soldier", "elite", "champion"], description: "Rank of the monster." },
+        species: { type: 'string', enum: ["beast", "construct", "demon", "elemental", "monster", "plant", "undead", "humanoid"], description: "Species of the monster." },
         attributes: {
-            type: Type.OBJECT,
+            type: 'object',
             properties: {
-                dex: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
-                ins: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
-                mig: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
-                wlp: { type: Type.STRING, enum: ["d6", "d8", "d10", "d12"] },
+                dex: { type: 'string', enum: ["d6", "d8", "d10", "d12"] },
+                ins: { type: 'string', enum: ["d6", "d8", "d10", "d12"] },
+                mig: { type: 'string', enum: ["d6", "d8", "d10", "d12"] },
+                wlp: { type: 'string', enum: ["d6", "d8", "d10", "d12"] },
             },
             required: ["dex", "ins", "mig", "wlp"]
         },
         stats: {
-            type: Type.OBJECT,
+            type: 'object',
             properties: {
-                hp: { type: Type.INTEGER, description: "Max Hit Points." },
-                mp: { type: Type.INTEGER, description: "Max Mind Points." },
-                init: { type: Type.INTEGER, description: "Initiative Score." },
-                def: { type: Type.INTEGER, description: "Defense Score." },
-                mdef: { type: Type.INTEGER, description: "Magic Defense Score." },
+                hp: { type: 'integer', description: "Max Hit Points." },
+                mp: { type: 'integer', description: "Max Mind Points." },
+                init: { type: 'integer', description: "Initiative Score." },
+                def: { type: 'integer', description: "Defense Score." },
+                mdef: { type: 'integer', description: "Magic Defense Score." },
             },
             required: ["hp", "mp", "init", "def", "mdef"]
         },
         affinities: {
-            type: Type.OBJECT,
+            type: 'object',
             properties: {
-                physical: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                air: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                bolt: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                dark: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                earth: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                fire: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                ice: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                light: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
-                poison: { type: Type.STRING, nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                physical: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                air: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                bolt: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                dark: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                earth: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                fire: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                ice: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                light: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
+                poison: { type: 'string', nullable: true, enum: ["vu", "res", "imm", "abs"] },
             }
         },
         basicAttacks: {
-            type: Type.ARRAY,
+            type: 'array',
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    name: { type: Type.STRING },
-                    attr1: { type: Type.STRING, enum: ["DEX", "INS", "MIG", "WLP"] },
-                    attr2: { type: Type.STRING, enum: ["DEX", "INS", "MIG", "WLP"] },
-                    damageMod: { type: Type.INTEGER, description: "Modifier added to High Roll (HR)." },
-                    damageType: { type: Type.STRING, description: "Type of damage (e.g. physical, fire)." },
-                    special: { type: Type.STRING, nullable: true, description: "Special effects." },
-                    range: { type: Type.STRING, enum: ["melee", "ranged"] }
+                    name: { type: 'string' },
+                    attr1: { type: 'string', enum: ["DEX", "INS", "MIG", "WLP"] },
+                    attr2: { type: 'string', enum: ["DEX", "INS", "MIG", "WLP"] },
+                    damageMod: { type: 'integer', description: "Modifier added to High Roll (HR)." },
+                    damageType: { type: 'string', description: "Type of damage (e.g. physical, fire)." },
+                    special: { type: 'string', nullable: true, description: "Special effects." },
+                    range: { type: 'string', enum: ["melee", "ranged"] }
                 },
                 required: ["name", "attr1", "attr2", "damageMod", "damageType", "range"]
             }
         },
         spells: {
-             type: Type.ARRAY,
+             type: 'array',
              nullable: true,
              items: {
-                 type: Type.OBJECT,
+                 type: 'object',
                  properties: {
-                     name: { type: Type.STRING },
-                     mpCost: { type: Type.STRING },
-                     target: { type: Type.STRING },
-                     duration: { type: Type.STRING },
-                     effect: { type: Type.STRING },
-                     isOffensive: { type: Type.BOOLEAN },
+                     name: { type: 'string' },
+                     mpCost: { type: 'string' },
+                     target: { type: 'string' },
+                     duration: { type: 'string' },
+                     effect: { type: 'string' },
+                     isOffensive: { type: 'boolean' },
                  },
                  required: ["name", "mpCost", "target", "duration", "effect"]
              }
         },
         specialRules: {
-            type: Type.ARRAY,
+            type: 'array',
             nullable: true,
             items: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
-                    name: { type: Type.STRING },
-                    effect: { type: Type.STRING }
+                    name: { type: 'string' },
+                    effect: { type: 'string' }
                 },
                 required: ["name", "effect"]
             }
@@ -630,7 +610,6 @@ const FABULA_MONSTER_SCHEMA = {
 };
 
 export const generateFabulaMonster = async (prompt, language) => {
-    const model = 'gemini-2.5-flash';
     const languageInstruction = language === 'it' ? 'Italian' : 'English';
 
     const systemInstruction = `You are an expert game designer for the Fabula Ultima TTRPG. Your task is to generate a balanced, game-ready monster stat block based on the user's description. You must strictly adhere to the provided JSON schema. Ensure all stats (HP, MP, Initiative, etc.) are calculated correctly according to the Fabula Ultima rules for the monster's level, rank, and species. The response MUST be in ${languageInstruction}.`;
@@ -639,8 +618,7 @@ export const generateFabulaMonster = async (prompt, language) => {
 
     const contents = { parts: [{ text: userPrompt }] };
 
-    const response = await ai.models.generateContent({
-        model,
+    const response = await generateContent({
         contents,
         config: {
             systemInstruction,

@@ -62,7 +62,7 @@ const MapTutorial = ({ isOpen, onClose }) => {
         onClick: handleFinish
     },
         React.createElement('div', {
-            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-8 w-full max-w-md m-4 border-2 border-[var(--border-accent)] flex flex-col items-center text-center",
+            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-8 w-full max-w-md m-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain border-2 border-[var(--border-accent)] flex flex-col items-center text-center",
             onClick: e => e.stopPropagation()
         },
             React.createElement('div', { className: 'mb-6 h-12 flex items-center' }, current.icon),

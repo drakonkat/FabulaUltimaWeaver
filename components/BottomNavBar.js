@@ -34,8 +34,8 @@ const BottomNavBar = ({ user, onSignOut, onOpenBackupModal, mode, onModeChange, 
                 setIsMenuOpen(false);
             }
         };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        document.addEventListener("pointerdown", handleClickOutside);
+        return () => document.removeEventListener("pointerdown", handleClickOutside);
     }, [menuRef]);
 
     if (!isVisible) {
@@ -50,9 +50,11 @@ const BottomNavBar = ({ user, onSignOut, onOpenBackupModal, mode, onModeChange, 
     ];
     
     return React.createElement('nav', {
+        ref: menuRef,
+        style: { paddingBottom: 'env(safe-area-inset-bottom)' },
         className: "md:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)]/90 backdrop-blur-sm border-t-2 border-[var(--border-accent)] shadow-lg z-50 text-[var(--text-primary)]"
     },
-        React.createElement('div', { className: 'relative', ref: menuRef },
+        React.createElement('div', { className: 'relative' },
             isMenuOpen && React.createElement('div', {
                 className: "absolute bottom-full right-0 mb-3 p-4 bg-[var(--bg-tertiary)] rounded-lg shadow-xl border border-[var(--border-primary)] flex flex-col gap-4 animate-fade-in-up w-52"
             },

@@ -6,7 +6,7 @@ import { fabulaClasses, fabulaClassDetails } from '../data/fabulaUltimaData.js';
 import { identityConcepts, identityAdjectives, identityDetails, themeSuggestions, originSuggestions } from '../data/fabulaUltimaIdentityHelper.js';
 import { equipment as equipmentData } from '../data/fabulaUltimaEquipment.js';
 import FabulaClassDetails from './FabulaClassDetails.js';
-import { GoogleGenAI } from "@google/genai";
+import { generateContent } from '../services/aiClient.js';
 
 const Step_1_Identity = ({ data, onUpdate }) => {
     const { t, language } = useTranslation();
@@ -290,10 +290,11 @@ const Step_7_Equipment = ({ data, onUpdate }) => {
 const Step_8_Description = ({ data, onUpdate }) => {
     const { t, language } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const [generationError, setGenerationError] = useState(null);
     
     const handleGenerateDescription = async () => {
         setIsGenerating(true);
+        setGenerationError(null);
         const classNames = data.classes.map(c => t(fabulaClasses.find(fc => fc.id === c.classId)?.nameKey || '')).join(' / ');
         const prompt = `Generate a short, evocative physical description for a Fabula Ultima character. The description should be 2-3 sentences.
         - Identity: ${[data.identity.concept, data.identity.adjective, data.identity.detail].filter(Boolean).join(' ')}
@@ -303,15 +304,15 @@ const Step_8_Description = ({ data, onUpdate }) => {
         `;
         
         try {
-            const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: prompt,
+            const response = await generateContent({
+              contents: { parts: [{ text: prompt }] },
               config: {
                 systemInstruction: `You are a creative writer for JRPG characters. Respond only with the description text. The response must be in ${language}.`
               }
             });
             onUpdate({ description: response.text });
         } catch (e) {
+            setGenerationError(e.message);
             console.error(e);
         } finally {
             setIsGenerating(false);
@@ -320,6 +321,7 @@ const Step_8_Description = ({ data, onUpdate }) => {
 
     return React.createElement('div', { className: 'space-y-4' },
         React.createElement('p', { className: 'text-center text-[var(--text-muted)]' }, t('descriptionPrompt')),
+        generationError && React.createElement('p', { role: 'alert', className: 'text-[var(--danger-text)]' }, generationError),
         React.createElement('input', {
             type: 'text',
             placeholder: t('heroNamePlaceholder'),

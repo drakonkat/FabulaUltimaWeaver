@@ -55,7 +55,7 @@ const OneShotGeneratorModal = ({ isOpen, onClose, onGenerate, isLoading, canGene
         'aria-modal': true, role: "dialog", onClick: onClose
     },
         React.createElement('div', {
-            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-2xl m-4 border-2 border-[var(--border-accent)]",
+            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-2xl m-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain border-2 border-[var(--border-accent)]",
             onClick: e => e.stopPropagation()
         },
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)] mb-4" }, t('adventureSettings')),
@@ -166,13 +166,13 @@ const OneShotList = ({ oneShots, onSelect, onDelete, onNew, canCreate, onLoadTem
                         key: os.id,
                         className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex justify-between items-center gap-4 hover:bg-[var(--bg-primary)]/90 hover:border-[var(--border-accent-light)] transition-all duration-200"
                     },
-                        React.createElement('div', { className: "flex-grow cursor-pointer", onClick: () => onSelect(os.id) },
+                        React.createElement('div', { className: "flex-grow min-w-0 break-words cursor-pointer", onClick: () => onSelect(os.id) },
                             React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, os.title),
                             React.createElement('p', { className: "text-sm text-[var(--text-subtle)]" }, `${t('lastModified')}: ${formatDate(os.lastModified)}`)
                         ),
                         React.createElement('button', {
                             onClick: (e) => { e.stopPropagation(); onDelete(os.id); },
-                            className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200",
+                            className: "shrink-0 p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200",
                             'aria-label': `${t('deleteOneShot')} ${os.title}`
                         },
                             React.createElement(TrashIcon, null)

@@ -480,7 +480,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             characterType === 'fabulaUltima' ?
                 React.createElement('div', { className: 'md:col-span-2 space-y-2' },
                     React.createElement('label', { className: "block text-sm font-medium text-[var(--accent-primary)] mb-1" }, t('fabulaUltimaClass')),
-                    classes.map((c) => React.createElement('div', { key: c.id, className: "grid grid-cols-[1fr_80px_auto] items-center gap-2" },
+                    classes.map((c) => React.createElement('div', { key: c.id, className: "grid grid-cols-[minmax(0,1fr)_4rem_auto] items-center gap-2" },
                         React.createElement('select', { 
                             value: c.classId, 
                             onChange: e => handleClassChange(c.id, 'classId', e.target.value),
@@ -553,7 +553,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 ),
                 React.createElement('div', null,
                     React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
-                        React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                        React.createElement('div', { className: "flex flex-wrap justify-between items-center gap-2 mb-2" },
                             React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('attributes')),
                             React.createElement('button', { type: "button", onClick: handleAddAttribute, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors" }, React.createElement(PlusIcon, null), t('addAttribute'))
                         ),
@@ -566,7 +566,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                         )
                     ),
                     React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
-                        React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                        React.createElement('div', { className: "flex flex-wrap justify-between items-center gap-2 mb-2" },
                             React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('inventory')),
                             React.createElement('div', { className: 'flex items-center gap-4' },
                                 React.createElement('span', { className: 'text-sm text-[var(--text-muted)]' }, `${t('totalWeight')}: ${formTotalWeight}`),
@@ -574,7 +574,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                             )
                         ),
                         React.createElement('div', { className: "space-y-2 max-h-48 overflow-y-auto pr-2" },
-                            inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-[1fr_80px_100px_auto] items-center gap-2" },
+                            inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_80px_100px_auto] items-center gap-2" },
                                 React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: getText(item.name), onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                                 React.createElement('input', { type: "text", placeholder: t('quantityPlaceholder'), value: item.quantity, onChange: e => handleItemChange(item.id, 'quantity', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                                 React.createElement('input', { type: "text", placeholder: t('weightPlaceholder'), value: item.weight, onChange: e => handleItemChange(item.id, 'weight', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
@@ -587,9 +587,9 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
                     React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)] mb-2" }, t('resources')),
                     React.createElement('div', { className: 'grid grid-cols-2 md:grid-cols-5 gap-4' },
-                         ['currentHp', 'currentMp', 'currentIp', 'fabulaPoints', 'zenit'].map(key => React.createElement('div', {key},
-                             React.createElement('label', {htmlFor: key, className: 'block text-sm font-medium text-[var(--text-secondary)] mb-1'}, t(key === 'currentIp' ? 'inventoryPoints' : key)),
-                             React.createElement('input', { type: 'number', id: key, value: eval(key), onChange: e => eval(`set${key.charAt(0).toUpperCase() + key.slice(1)}`)(parseInt(e.target.value, 10) || 0), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)]"})
+                         Object.entries({ currentHp: [currentHp, setCurrentHp], currentMp: [currentMp, setCurrentMp], currentIp: [currentIp, setCurrentIp], fabulaPoints: [fabulaPoints, setFabulaPoints], zenit: [zenit, setZenit] }).map(([key, [value, setValue]]) => React.createElement('div', {key},
+                             React.createElement('label', {htmlFor: key, className: 'block text-sm font-medium text-[var(--text-secondary)] mb-1'}, t({ currentHp: 'currentHP', currentMp: 'mindPoints', currentIp: 'inventoryPoints' }[key] || key)),
+                             React.createElement('input', { type: 'number', id: key, value, onChange: e => setValue(parseInt(e.target.value, 10) || 0), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)]"})
                          ))
                     )
                 ),
@@ -605,7 +605,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                 ),
                 // Fabula Bonds
                 React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
-                    React.createElement('div', { className: 'flex justify-between items-center mb-2' },
+                    React.createElement('div', { className: 'flex flex-wrap justify-between items-center gap-2 mb-2' },
                         React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('bonds')),
                         React.createElement('button', { type: 'button', onClick: handleAddBond, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white" }, React.createElement(PlusIcon, null), t('addBond'))
                     ),
@@ -625,7 +625,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
             ) :
             React.createElement('div', null, // Generic hero attributes and inventory
                 React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
-                    React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                    React.createElement('div', { className: "flex flex-wrap justify-between items-center gap-2 mb-2" },
                         React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('attributes')),
                         React.createElement('button', { type: "button", onClick: handleAddAttribute, className: "flex items-center px-3 py-1.5 text-sm rounded-lg bg-[var(--accent-tertiary)]/80 hover:bg-[var(--accent-tertiary)] text-white transition-colors" }, React.createElement(PlusIcon, null), t('addAttribute'))
                     ),
@@ -638,7 +638,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                     )
                 ),
                 React.createElement('div', { className: "border-t border-[var(--border-primary)] pt-4" },
-                    React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                    React.createElement('div', { className: "flex flex-wrap justify-between items-center gap-2 mb-2" },
                         React.createElement('h4', { className: "text-lg font-semibold text-[var(--text-secondary)]" }, t('inventory')),
                         React.createElement('div', { className: 'flex items-center gap-4' },
                             React.createElement('span', { className: 'text-sm text-[var(--text-muted)]' }, `${t('totalWeight')}: ${formTotalWeight}`),
@@ -646,7 +646,7 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
                         )
                     ),
                     React.createElement('div', { className: "space-y-2 max-h-48 overflow-y-auto pr-2" },
-                        inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-[1fr_80px_100px_auto] items-center gap-2" },
+                        inventory.map(item => React.createElement('div', { key: item.id, className: "grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_80px_100px_auto] items-center gap-2" },
                             React.createElement('input', { type: "text", placeholder: t('itemNamePlaceholder'), value: getText(item.name), onChange: e => handleItemChange(item.id, 'name', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                             React.createElement('input', { type: "text", placeholder: t('quantityPlaceholder'), value: item.quantity, onChange: e => handleItemChange(item.id, 'quantity', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),
                             React.createElement('input', { type: "text", placeholder: t('weightPlaceholder'), value: item.weight, onChange: e => handleItemChange(item.id, 'weight', e.target.value), className: "w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] text-sm" }),

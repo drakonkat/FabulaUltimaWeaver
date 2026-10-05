@@ -37,7 +37,7 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
         role: "dialog"
     },
         React.createElement('div', {
-            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-md m-4 border-2 border-[var(--border-accent)]"
+            className: "bg-[var(--bg-secondary)] rounded-lg shadow-xl p-6 w-full max-w-md m-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain border-2 border-[var(--border-accent)]"
         },
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)] mb-4" }, title),
             React.createElement('p', { className: "text-[var(--text-secondary)] mb-6" }, message),
@@ -67,7 +67,7 @@ const BackupModal = ({ isOpen, onClose, appState, onLoad }) => {
         onClick: onClose
     },
         React.createElement('div', {
-            className: "relative bg-[var(--bg-secondary)] rounded-lg shadow-xl w-full max-w-2xl m-4 border-2 border-[var(--border-accent)]",
+            className: "relative bg-[var(--bg-secondary)] rounded-lg shadow-xl w-full max-w-2xl m-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain border-2 border-[var(--border-accent)]",
             onClick: e => e.stopPropagation()
         },
             React.createElement('button', {
@@ -168,7 +168,7 @@ const DiceRoller = () => {
         }
     };
     
-    return React.createElement('div', { ref: node, className: "fixed bottom-20 md:bottom-6 right-6 z-50 flex flex-col items-end" },
+    return React.createElement('div', { ref: node, className: "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6 right-6 z-50 flex flex-col items-end" },
         isOpen && React.createElement('div', { className: "flex flex-col items-end gap-2 mb-2 animate-fade-in-up" },
             diceTypes.slice().reverse().map(sides => 
                 React.createElement('div', { key: sides, className: "flex items-center justify-end gap-3" },
@@ -1319,7 +1319,7 @@ const AppContent = () => {
 
   return React.createElement(ThemeContext.Provider, { value: { theme, setTheme } },
       React.createElement('div', { 
-          className: "flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]" + (!showAnyDetailView ? ' pb-16 md:pb-0' : ''),
+          className: "flex flex-col min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]" + (!showAnyDetailView ? ' pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0' : ''),
           style: {
             backgroundImage: 'radial-gradient(circle at top right, rgba(128, 0, 128, 0.2), transparent 40%), radial-gradient(circle at bottom left, rgba(106, 90, 205, 0.2), transparent 50%)',
             fontFamily: "'Helvetica Neue', 'Arial', sans-serif"
@@ -1352,7 +1352,7 @@ const AppContent = () => {
           !isLoading && renderAppContent()
       ),
       React.createElement(Footer, null),
-      appMode === 'gm' && React.createElement('div', { className: "fixed bottom-20 md:bottom-6 right-28 z-50" },
+      appMode === 'gm' && React.createElement('div', { className: "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6 right-28 z-50" },
         React.createElement('button', {
             onClick: () => setIsMapManagerOpen(true),
             'aria-label': t('battleMaps'),

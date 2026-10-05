@@ -2,8 +2,8 @@
 
 // IMPORTANT: You must create a Google Cloud project and get a Client ID for Google Sign-In to work.
 // Create a file named .env.local and add your Google Client ID like this:
-// GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID_HERE"
-export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID_HERE";
+// VITE_GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID_HERE"
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID_HERE";
 
 /**
  * The maximum number of campaigns a user can create on the free plan.

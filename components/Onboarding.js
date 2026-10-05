@@ -91,7 +91,7 @@ const Onboarding = ({ isOpen, onFinish }) => {
         onClick: onFinish
     },
         React.createElement('div', {
-            className: "relative bg-[var(--bg-secondary)] rounded-lg shadow-xl p-8 w-full max-w-lg m-4 border-2 border-[var(--border-accent)] flex flex-col items-center text-center",
+            className: "relative bg-[var(--bg-secondary)] rounded-lg shadow-xl p-8 w-full max-w-lg m-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain border-2 border-[var(--border-accent)] flex flex-col items-center text-center",
             onClick: e => e.stopPropagation()
         },
             React.createElement('button', {
