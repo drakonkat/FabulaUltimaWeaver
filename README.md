@@ -82,6 +82,9 @@ for the AI client checks and `npm run build` to verify the static bundle.
 You can switch systems anytime; the AI adapts the tone and content accordingly.
 
 ## Tips for best results
+- **Ask** on each One-Shot area or card explains the selected passage using the
+  entire adventure, with references to relevant sections. Follow-up questions stay
+  in the dialog; answers never modify or save adventure content.
 - In the monster editor, use **Create or refine with AI** for generic or Fabula Ultima
   monsters. Describe a new creature or request changes to the current form, including
   attributes and inventory. Review the draft, then Save/Update; Cancel discards it.

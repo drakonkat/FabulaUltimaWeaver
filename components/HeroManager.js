@@ -1,6 +1,7 @@
 
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { AskButton } from './AdventureAsk.js';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { heroTemplates } from '../data/templates.js';
 import { randomizerData } from '../data/randomizerData.js';
@@ -724,13 +725,14 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
 
         return React.createElement('div', { className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)] flex flex-col items-start gap-4" },
             React.createElement('div', { className: "w-full flex-grow" },
-                React.createElement('div', { className: "flex justify-between items-start" },
+                React.createElement('div', { className: "flex flex-wrap gap-2 justify-between items-start" },
                     React.createElement('div', null,
                         React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, hero.name),
                         React.createElement('p', { className: "text-sm text-[var(--text-muted)] mt-1" }, `${hero.age}, ${hero.gender} ${hero.race} ${classDisplay} (Lvl ${totalLevel})`),
                         React.createElement('p', { className: "text-sm text-[var(--text-muted)]" }, React.createElement('span', { className: "font-semibold text-[var(--text-secondary)]" }, `${t('status')}:`), ` ${hero.status}`)
                     ),
                     React.createElement('div', { className: "flex-shrink-0 flex gap-2 items-center" },
+                        React.createElement(AskButton, { section: t('partyRoster'), item: hero }),
                         hero.characterType === 'fabulaUltima' && React.createElement('button', {
                             onClick: handleDownloadPdf,
                             disabled: isGeneratingPdf,
@@ -820,7 +822,8 @@ const HeroManager = ({ heroes, onAddHero, onUpdateHero, onRemoveHero, gameSystem
         }),
         React.createElement('div', { className: "flex flex-wrap gap-4 justify-between items-center mb-4" },
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, isPlayerView ? t('myHero') : t('partyRoster')),
-            !isPlayerView && React.createElement('div', { className: "flex gap-2" },
+            React.createElement(AskButton, { section: t('partyRoster'), item: { entries: heroes } }),
+            !isPlayerView && React.createElement('div', { className: "flex flex-wrap gap-2" },
                 React.createElement('select', { onChange: handleAddFromTemplate, className: "bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-accent)] rounded-lg py-2 px-3 text-sm focus:ring-[var(--accent-secondary)] focus:border-[var(--accent-secondary)] hover:bg-[var(--bg-quaternary)]", 'aria-label': t('addFromTemplate') },
                     React.createElement('option', { value: "" }, t('selectTemplate')),
                     ...heroTemplates.map(template => React.createElement('option', { key: template.name, value: template.name }, template.name))

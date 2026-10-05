@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import { generateMonster } from '../services/geminiService.js';
+import { AskButton } from './AdventureAsk.js';
 
 const SkullIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-6 w-6 text-[var(--highlight-secondary)]", viewBox: "0 0 20 20", fill: "currentColor" },
     React.createElement('path', { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zM5.5 8.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zm5 0a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM10 12a4 4 0 00-4 4 .5.5 0 00.5.5h7a.5.5 0 00.5-.5 4 4 0 00-4-4z", clipRule: "evenodd" })
@@ -512,6 +513,7 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
         if (monster.type === 'fabula') {
             return React.createElement('div', { className: "mb-4" },
                 React.createElement('div', { className: "flex justify-end gap-2 mb-1" },
+                    React.createElement(AskButton, { section: t('monsterRoster'), item: monster }),
                     React.createElement('button', { disabled: isGenerating, 'aria-label': `${t('edit')} ${monster.name}`, onClick: () => setEditingMonster(monster), className: "p-1 text-blue-400 hover:text-blue-300" }, React.createElement(PencilIcon, null)),
                     React.createElement('button', { disabled: isGenerating, 'aria-label': `${t('remove')} ${monster.name}`, onClick: () => onRemoveMonster(monster.id), className: "p-1 text-[var(--danger)]/80 hover:text-[var(--danger)]" }, React.createElement(TrashIcon, null))
                 ),
@@ -520,9 +522,10 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
         }
 
         return React.createElement('div', { className: "p-4 bg-[var(--bg-primary)]/70 rounded-md border border-[var(--border-secondary)]" },
-            React.createElement('div', { className: "flex justify-between items-start" },
+            React.createElement('div', { className: "flex flex-wrap gap-2 justify-between items-start" },
                 React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, monster.name),
                 React.createElement('div', { className: "flex-shrink-0 flex gap-2" },
+                    React.createElement(AskButton, { section: t('monsterRoster'), item: monster }),
                     React.createElement('button', { disabled: isGenerating, onClick: () => setEditingMonster(monster), className: "p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/50 rounded-full transition-colors duration-200", 'aria-label': `${t('edit')} ${monster.name}` }, React.createElement(PencilIcon, null)),
                     React.createElement('button', { disabled: isGenerating, onClick: () => onRemoveMonster(monster.id), className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200", 'aria-label': `${t('remove')} ${monster.name}` }, React.createElement(TrashIcon, null))
                 )
@@ -551,6 +554,7 @@ const MonsterManager = ({ monsters, onAddMonster, onUpdateMonster, onRemoveMonst
                 React.createElement(SkullIcon),
                 t('monsterRoster')
             ),
+            React.createElement(AskButton, { section: t('monsterRoster'), item: { entries: monsters } }),
             !isFormVisible && React.createElement('button', { onClick: handleOpenFormForAdd, className: "flex items-center px-4 py-2 rounded-lg bg-[var(--accent-tertiary)] hover:bg-[var(--accent-secondary)] text-white transition-colors duration-300", 'aria-label': t('addMonster') },
                 React.createElement(PlusIcon, null), t('addMonster')
             )

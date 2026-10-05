@@ -4,6 +4,7 @@ import { useTranslation } from '../hooks/useTranslation.js';
 import CampaignNameEditor from './CampaignNameEditor.js';
 import HeroManager from './HeroManager.js';
 import MonsterManager from './MonsterManager.js';
+import { AdventureAskProvider, AskButton } from './AdventureAsk.js';
 import { chatWithNpc, modifyOneShotContent, modifyOneShotAdventure, ONE_SHOT_EDIT_SECTIONS } from '../services/geminiService.js';
 
 
@@ -273,9 +274,10 @@ const StoryArcForm = ({ arc, onUpdate, onRemove, onGenerate, onRewrite, canGener
             onConfirm: handleModifyWithAI,
             isLoading: isGenerating 
         }),
-        React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+        React.createElement('div', { className: 'flex flex-wrap gap-2 justify-between items-center mb-4' },
             React.createElement('h3', { className: 'text-xl font-semibold text-[var(--accent-primary)]' }, arc.title || t('mainStoryArc')),
-            React.createElement('div', { className: 'flex gap-2' },
+            React.createElement('div', { className: 'flex flex-wrap gap-2' },
+                React.createElement(AskButton, { section: t('mainStoryArc'), item: arc }),
                 React.createElement('button', { 
                     onClick: () => setIsModifying(true), 
                     disabled: !canGenerate || isGenerating, 
@@ -316,6 +318,7 @@ const MainStoryArcManager = ({ storyArcs, onAdd, onUpdate, onRemove, onGenerate,
     
     return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8 p-6 bg-[var(--bg-secondary)]/60 rounded-lg border border-[var(--border-accent)]/50 shadow-lg" },
         React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)] mb-4", style: { fontFamily: 'serif' } }, `${t('mainStoryArc')} (${storyArcs.length})`),
+        React.createElement('div', { className: 'mb-3' }, React.createElement(AskButton, { section: t('mainStoryArc'), item: { entries: storyArcs } })),
         React.createElement('div', { className: 'space-y-6' },
             storyArcs.map(arc => 
                 React.createElement(StoryArcForm, {
@@ -344,9 +347,12 @@ const MainStoryArcManager = ({ storyArcs, onAdd, onUpdate, onRemove, onGenerate,
 const SectionManager = ({ title, items, children }) => {
     const [isOpen, setIsOpen] = useState(true);
     return React.createElement('div', { className: "w-full max-w-4xl mx-auto mt-8" },
-        React.createElement('button', { onClick: () => setIsOpen(!isOpen), className: 'w-full flex justify-between items-center p-4 bg-[var(--bg-secondary)]/80 rounded-t-lg border border-b-0 border-[var(--border-accent)]/50' },
+        React.createElement('div', { className: 'flex items-center gap-2 p-4 bg-[var(--bg-secondary)]/80 rounded-t-lg border border-b-0 border-[var(--border-accent)]/50' },
+          React.createElement('button', { onClick: () => setIsOpen(!isOpen), className: 'min-w-0 flex-1 flex justify-between items-center text-left', 'aria-expanded': isOpen },
             React.createElement('h2', { className: "text-2xl font-bold text-[var(--highlight-secondary)]", style: { fontFamily: 'serif' } }, `${title} (${items.length})`),
             React.createElement(ChevronDownIcon, { open: isOpen })
+          ),
+          React.createElement(AskButton, { section: title, item: { entries: items } })
         ),
         isOpen && React.createElement('div', { className: 'p-6 bg-[var(--bg-secondary)]/60 rounded-b-lg border border-t-0 border-[var(--border-accent)]/50 animate-fade-in' }, children)
     );
@@ -395,6 +401,7 @@ const EditableCard = ({ item, fieldsConfig, onUpdate, onRemove, onRewrite, canGe
             onApply: () => { onUpdate({ ...item, ...proposal, id: item.id }); setIsModifying(false); },
         }),
         React.createElement('div', { className: 'flex flex-wrap gap-2 justify-end items-center mb-2 -mt-2 -mr-2' },
+            React.createElement(AskButton, { section: t(sectionConfigs[sectionKey].title), item }),
             React.createElement('button', {
                 disabled: !canGenerate || Object.values(isRewriting).some(Boolean),
                 onClick: () => { setProposal(null); setAiError(null); setIsModifying(true); },
@@ -552,7 +559,8 @@ const OneShotDashboard = ({ oneShot, onUpdate, onAddHero, onUpdateHero, onRemove
     };
 
 
-    return React.createElement('div', { className: "animate-fade-in pb-8" },
+    return React.createElement(AdventureAskProvider, { key: oneShot.id, adventure: oneShot },
+      React.createElement('div', { className: "animate-fade-in pb-8" },
         isBulkOpen && React.createElement(ModificationModal, {
             isOpen: true, isLoading: isBulkLoading, error: bulkError,
             title: t('bulkEditOneShot'), placeholder: t('bulkEditPlaceholder'),
@@ -575,6 +583,7 @@ const OneShotDashboard = ({ oneShot, onUpdate, onAddHero, onUpdateHero, onRemove
         }),
         React.createElement('div', { className: "w-full max-w-4xl mx-auto text-center mt-8" },
             React.createElement(CampaignNameEditor, { campaign: oneShot, onUpdate: onUpdate, field: 'title' }),
+            React.createElement('div', { className: 'mt-3' }, React.createElement(AskButton, { section: oneShot.title, item: { title: oneShot.title } })),
             React.createElement('button', {
                 disabled: !canGenerate,
                 onClick: () => { setBulkProposal(null); setBulkError(null); setIsBulkOpen(true); },
@@ -622,6 +631,7 @@ const OneShotDashboard = ({ oneShot, onUpdate, onAddHero, onUpdateHero, onRemove
                     : React.createElement('p', { className: "text-[var(--text-muted)] italic text-center" }, t(config.emptyLabel))
             );
         })
+      )
     );
 };
 
