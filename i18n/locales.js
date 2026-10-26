@@ -307,6 +307,8 @@ export const translations = {
     noOneShots: 'No one-shots yet. Create one to begin!',
     deleteOneShot: 'Delete One-Shot',
     deleteOneShotConfirmation: 'Are you sure you want to delete this one-shot permanently?',
+    continueOneShot: 'Continue as Sequel',
+    sequelSuffix: ' - Sequel',
     mainStoryArc: 'Main Story Arc',
     addMainStoryArc: 'Add Main Story Arc',
     removeStoryArc: 'Remove Story Arc',
@@ -535,6 +537,8 @@ export const translations = {
     // Footer
     privacyPolicy: 'Privacy Policy',
     termsAndConditions: 'Terms & Conditions',
+    whatsNew: "What's new",
+    changelogTitle: 'Changelog',
   },
   it: {
     appName: "Il Codice del Master",
@@ -843,6 +847,8 @@ export const translations = {
     noOneShots: 'Nessuna one-shot ancora. Creane una per iniziare!',
     deleteOneShot: 'Elimina One-Shot',
     deleteOneShotConfirmation: 'Sei sicuro di voler eliminare questa one-shot in modo permanente?',
+    continueOneShot: 'Continua come Seguito',
+    sequelSuffix: ' - Seguito',
     mainStoryArc: 'Arco Narrativo Principale',
     addMainStoryArc: 'Aggiungi Arco Narrativo',
     removeStoryArc: 'Rimuovi Arco Narrativo',
@@ -1071,5 +1077,7 @@ export const translations = {
     // Footer
     privacyPolicy: 'Informativa sulla Privacy',
     termsAndConditions: 'Termini e Condizioni',
+    whatsNew: 'Novita',
+    changelogTitle: 'Registro modifiche',
   },
 };

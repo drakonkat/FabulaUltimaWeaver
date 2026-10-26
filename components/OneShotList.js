@@ -11,6 +11,11 @@ const TrashIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2
     React.createElement('path', { fillRule: "evenodd", d: "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z", clipRule: "evenodd" })
 );
 
+const ContinueIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", viewBox: "0 0 20 20", fill: "currentColor" },
+    React.createElement('path', { fillRule: "evenodd", d: "M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z", clipRule: "evenodd" }),
+    React.createElement('path', { d: "M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h6a2 2 0 00-2-2H5z" })
+);
+
 const DifficultyIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 mr-1.5 text-[var(--accent-primary)]", viewBox: "0 0 20 20", fill: "currentColor" },
   React.createElement('path', { fillRule: "evenodd", d: "M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z", clipRule: "evenodd" })
 );
@@ -119,7 +124,7 @@ const OneShotGeneratorModal = ({ isOpen, onClose, onGenerate, isLoading, canGene
 };
 
 
-const OneShotList = ({ oneShots, onSelect, onDelete, onNew, canCreate, onLoadTemplate, onOpenGenerator, onGenerate, isGeneratorOpen, onCloseGenerator, isLoading, canGenerate }) => {
+const OneShotList = ({ oneShots, onSelect, onDelete, onContinue, onNew, canCreate, onLoadTemplate, onOpenGenerator, onGenerate, isGeneratorOpen, onCloseGenerator, isLoading, canGenerate }) => {
     const { t, language } = useTranslation();
 
     const sortedOneShots = [...oneShots].sort((a, b) => b.lastModified - a.lastModified);
@@ -168,14 +173,26 @@ const OneShotList = ({ oneShots, onSelect, onDelete, onNew, canCreate, onLoadTem
                     },
                         React.createElement('div', { className: "flex-grow min-w-0 break-words cursor-pointer", onClick: () => onSelect(os.id) },
                             React.createElement('h3', { className: "font-bold text-[var(--accent-primary)] text-xl" }, os.title),
-                            React.createElement('p', { className: "text-sm text-[var(--text-subtle)]" }, `${t('lastModified')}: ${formatDate(os.lastModified)}`)
+                            React.createElement('p', { className: "text-sm text-[var(--text-subtle)]" }, `${t('lastModified')}: ${formatDate(os.lastModified)}`),
+                            os.sequelOf ? React.createElement('p', { className: "text-xs text-[var(--accent-primary)]" }, t('continueOneShot')) : null
                         ),
-                        React.createElement('button', {
-                            onClick: (e) => { e.stopPropagation(); onDelete(os.id); },
-                            className: "shrink-0 p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200",
-                            'aria-label': `${t('deleteOneShot')} ${os.title}`
-                        },
-                            React.createElement(TrashIcon, null)
+                        React.createElement('div', { className: "flex shrink-0 items-center gap-1" },
+                            React.createElement('button', {
+                                onClick: (e) => { e.stopPropagation(); onContinue(os.id); },
+                                disabled: !canCreate,
+                                title: !canCreate ? t('limitCampaigns') : t('continueOneShot'),
+                                className: "p-2 text-[var(--accent-primary)]/80 hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed",
+                                'aria-label': `${t('continueOneShot')}: ${os.title}`
+                            },
+                                React.createElement(ContinueIcon, null)
+                            ),
+                            React.createElement('button', {
+                                onClick: (e) => { e.stopPropagation(); onDelete(os.id); },
+                                className: "p-2 text-[var(--danger)]/80 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded-full transition-colors duration-200",
+                                'aria-label': `${t('deleteOneShot')} ${os.title}`
+                            },
+                                React.createElement(TrashIcon, null)
+                            )
                         )
                     )
                 )

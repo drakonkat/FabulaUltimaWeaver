@@ -1142,6 +1142,33 @@ const AppContent = () => {
     });
   }, [t, activeOneShotId, openConfirmModal]);
 
+  const handleContinueOneShot = useCallback((id) => {
+    if (!canCreateOneShot) {
+        setError(t('limitCampaigns'));
+        return;
+    }
+    const source = (appState.oneShots || []).find(os => os.id === id);
+    if (!source) return;
+    const cloneSection = (arr) => (arr || []).map(item => ({ ...item, id: crypto.randomUUID() }));
+    const newId = crypto.randomUUID();
+    const newOneShot = {
+        ...JSON.parse(JSON.stringify(source)),
+        id: newId,
+        sequelOf: source.id,
+        title: `${source.title}${t('sequelSuffix')}`,
+        lastModified: Date.now(),
+        mainStoryArcs: cloneSection(source.mainStoryArcs),
+        locations: cloneSection(source.locations),
+        events: cloneSection(source.events),
+        npcs: cloneSection(source.npcs),
+        items: cloneSection(source.items),
+        heroes: cloneSection(source.heroes),
+        monsters: cloneSection(source.monsters),
+    };
+    setAppState(prev => ({ ...prev, oneShots: [...(prev.oneShots || []), newOneShot]}));
+    setActiveOneShotId(newId);
+  }, [appState.oneShots, canCreateOneShot, t]);
+
 
   // Player Game Handlers
   const canCreatePlayerGame = useMemo(() => {
@@ -1297,6 +1324,7 @@ const AppContent = () => {
                 oneShots: appState.oneShots || [], 
                 onSelect: setActiveOneShotId, 
                 onDelete: handleDeleteOneShot, 
+                onContinue: handleContinueOneShot, 
                 onNew: handleNewOneShot, 
                 canCreate: canCreateOneShot, 
                 onLoadTemplate: handleLoadOneShotTemplate,

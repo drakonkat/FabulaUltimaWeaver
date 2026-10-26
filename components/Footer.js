@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
+import ChangelogModal from './ChangelogModal.js';
 
 const Footer = () => {
   const { t } = useTranslation();
+  const [isChangelogOpen, setIsChangelogOpen] = React.useState(false);
 
   return React.createElement('footer', { className: "w-full bg-[var(--bg-secondary)]/50 border-t-2 border-[var(--border-secondary)] mt-auto py-4 px-4" },
     React.createElement('div', { className: "container mx-auto text-center text-[var(--text-muted)] text-sm" },
@@ -14,7 +16,12 @@ const Footer = () => {
         React.createElement('a', { href: "#", className: "hover:text-[var(--accent-primary)] transition-colors" }, t('termsAndConditions'))
       ),
       React.createElement('p', null, `© ${new Date().getFullYear()} The GM's Codex. All rights reserved.`),
-      React.createElement('p', { className: 'mt-1' }, `v${__APP_VERSION__}`)
+      React.createElement('button', {
+          onClick: () => setIsChangelogOpen(true),
+          title: t('whatsNew'),
+          className: "mt-1 hover:text-[var(--accent-primary)] transition-colors underline decoration-dotted"
+      }, `v${__APP_VERSION__}`),
+      React.createElement(ChangelogModal, { isOpen: isChangelogOpen, onClose: () => setIsChangelogOpen(false) })
     )
   );
 };
