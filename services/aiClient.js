@@ -54,5 +54,6 @@ export async function generateContent({ contents, config = {} }, env = import.me
     if (typeof text !== 'string' || !text.trim()) {
         throw new Error('The AI returned an empty or invalid response. Please try again.');
     }
-    return { text };
+    const jsonBlock = config.responseSchema && text.trim().match(/^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/i);
+    return { text: jsonBlock ? jsonBlock[1] : text };
 }

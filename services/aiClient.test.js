@@ -24,6 +24,17 @@ try {
         return Response.json({ choices: [{ message: { content: '{"name":"Map"}' }, finish_reason: 'stop' }] });
     };
     assert.deepEqual(await generateContent(request, env), { text: '{"name":"Map"}' });
+    const json = JSON.stringify({ name: 'Map', description: 'Keep ```json inside the story.' });
+    for (const content of [json, `\n\`\`\`json\n${json}\n\`\`\`\n`, `\`\`\`\r\n${json}\r\n\`\`\``]) {
+        globalThis.fetch = async () => Response.json({ choices: [{ message: { content } }] });
+        assert.deepEqual(JSON.parse((await generateContent(request, env)).text), JSON.parse(json));
+    }
+    const markdown = `\`\`\`json\n${json}\n\`\`\``;
+    globalThis.fetch = async () => Response.json({ choices: [{ message: { content: markdown } }] });
+    assert.equal((await generateContent({ contents: request.contents }, env)).text, markdown);
+    globalThis.fetch = async () => Response.json({ choices: [{ message: { content: '```json\n{"name":}\n```' } }] });
+    const malformed = await generateContent(request, env);
+    assert.throws(() => JSON.parse(malformed.text));
     await assert.rejects(generateContent(request, {}), /AI is not configured/);
     await assert.rejects(generateContent(request, { ...env, VITE_AI_BASE_URL: 'http://unsafe.example' }), /HTTPS/);
     globalThis.fetch = async (_url, options) => {
