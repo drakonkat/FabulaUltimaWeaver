@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslation } from '../hooks/useTranslation.js';
 import CampaignNameEditor from './CampaignNameEditor.js';
 import MapTutorial from './MapTutorial.js';
+import { generateDungeonFloors, removeBrokenStairs } from '../services/dungeon.js';
 
 // START: ICONS
 const BackIcon = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5 mr-2", viewBox: "0 0 20 20", fill: "currentColor" }, React.createElement('path', { fillRule: "evenodd", d: "M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z", clipRule: "evenodd" }));
@@ -53,7 +54,7 @@ const MapList = ({ maps, onSelect, onDelete, onNew }) => {
 
 const DungeonGeneratorModal = ({ isOpen, onClose, onGenerate }) => {
     const { t } = useTranslation();
-    const [settings, setSettings] = useState({ size: 'medium', type: 'classicDungeon' });
+    const [settings, setSettings] = useState({ size: 'medium', type: 'classicDungeon', floors: 1 });
 
     if (!isOpen) return null;
 
@@ -66,20 +67,27 @@ const DungeonGeneratorModal = ({ isOpen, onClose, onGenerate }) => {
         React.createElement('h3', { className: "text-lg font-bold text-[var(--highlight-secondary)] mb-4 text-center" }, t('dungeonSettings')),
         React.createElement('div', { className: "space-y-4" },
             React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-medium text-[var(--text-secondary)] mb-1' }, t('dungeonSize')),
-                React.createElement('select', { value: settings.size, onChange: e => setSettings(s => ({ ...s, size: e.target.value })), className: "w-full p-2 bg-[var(--bg-primary)] rounded-md border border-[var(--border-primary)]" },
+                React.createElement('label', { htmlFor: 'dungeon-size', className: 'block text-sm font-medium text-[var(--text-secondary)] mb-1' }, t('dungeonSize')),
+                React.createElement('select', { id: 'dungeon-size', value: settings.size, onChange: e => setSettings(s => ({ ...s, size: e.target.value })), className: "w-full p-2 bg-[var(--bg-primary)] rounded-md border border-[var(--border-primary)]" },
                     React.createElement('option', { value: 'small' }, t('small')),
                     React.createElement('option', { value: 'medium' }, t('medium')),
                     React.createElement('option', { value: 'large' }, t('large')),
                 )
             ),
             React.createElement('div', null,
-                React.createElement('label', { className: 'block text-sm font-medium text-[var(--text-secondary)] mb-1' }, t('dungeonType')),
-                React.createElement('select', { value: settings.type, onChange: e => setSettings(s => ({ ...s, type: e.target.value })), className: "w-full p-2 bg-[var(--bg-primary)] rounded-md border border-[var(--border-primary)]" },
+                React.createElement('label', { htmlFor: 'dungeon-type', className: 'block text-sm font-medium text-[var(--text-secondary)] mb-1' }, t('dungeonType')),
+                React.createElement('select', { id: 'dungeon-type', value: settings.type, onChange: e => setSettings(s => ({ ...s, type: e.target.value })), className: "w-full p-2 bg-[var(--bg-primary)] rounded-md border border-[var(--border-primary)]" },
                     React.createElement('option', { value: 'classicDungeon' }, t('classicDungeon')),
                     React.createElement('option', { value: 'caverns' }, t('caverns')),
                     React.createElement('option', { value: 'ruins' }, t('ruins')),
                 )
+            ),
+            React.createElement('div', null,
+                React.createElement('label', { htmlFor: 'dungeon-floors', className: 'block text-sm font-medium mb-1' }, t('dungeonFloors')),
+                React.createElement('select', { id: 'dungeon-floors', value: settings.floors, onChange: e => setSettings(s => ({ ...s, floors: Number(e.target.value) })), className: 'w-full p-2 bg-[var(--bg-primary)] rounded-md' },
+                    [1, 2, 3, 4].map(number => React.createElement('option', { key: number, value: number }, number))
+                ),
+                React.createElement('p', { className: 'text-sm text-[var(--text-muted)] mt-2' }, t('dungeonFloorsHint'))
             ),
             React.createElement('div', { className: "flex justify-end gap-2 pt-4 border-t border-[var(--border-secondary)]" },
                 React.createElement('button', { onClick: onClose, className: "px-4 py-2 text-sm font-bold text-[var(--text-secondary)] rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-quaternary)]" }, t('cancel')),
@@ -120,11 +128,16 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
-        const drawItem = (item, context) => {
+        const drawItem = (item, context, outline = false) => {
             if (!item) return;
             context.strokeStyle = item.color || '#FFFFFF'; context.lineWidth = item.strokeWidth || 3;
             context.fillStyle = item.fill || item.color || '#FFFFFF';
-            context.lineCap = 'round'; context.lineJoin = 'round';
+            context.lineCap = item.terrain ? 'butt' : 'round'; context.lineJoin = 'round';
+            if (outline) {
+                context.strokeStyle = item.wallColor;
+                context.fillStyle = item.wallColor;
+                context.lineWidth = item.type === 'path' ? item.strokeWidth + 8 : 8;
+            }
 
             switch (item.type) {
                 case 'path':
@@ -133,7 +146,8 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                         item.points.forEach(p => context.lineTo(p.x, p.y)); context.stroke();
                     } break;
                 case 'rectangle':
-                    if (item.fill) context.fillRect(item.x, item.y, item.width, item.height);
+                    if (outline) context.strokeRect(item.x, item.y, item.width, item.height);
+                    else if (item.fill) context.fillRect(item.x, item.y, item.width, item.height);
                     else context.strokeRect(item.x, item.y, item.width, item.height);
                     break;
                 case 'circle':
@@ -141,13 +155,43 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                     if (item.fill) context.fill();
                     else context.stroke();
                     break;
-                case 'door':
-                    context.fillStyle = '#854d0e'; // Door color
-                    context.fillRect(item.x - 8, item.y - 20, 16, 40); // 16x40 door
+                case 'polygon':
                     context.beginPath();
-                    context.arc(item.x + 4, item.y, 2, 0, 2 * Math.PI); // Knob
-                    context.fillStyle = '#facc15'; // Gold knob
-                    context.fill();
+                    item.points.forEach((point, i) => i ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y));
+                    context.closePath();
+                    if (outline) context.stroke(); else context.fill();
+                    break;
+                case 'roomLabel':
+                    context.font = 'bold 13px sans-serif'; context.textAlign = 'center'; context.textBaseline = 'middle';
+                    context.fillStyle = '#1f2937'; context.fillText(item.label, item.x, item.y);
+                    break;
+                case 'entry':
+                case 'stairs':
+                    context.fillStyle = item.type === 'entry' ? '#065f46' : '#4338ca';
+                    context.fillRect(item.x - 20, item.y - 20, 40, 40);
+                    context.strokeStyle = '#ffffff'; context.lineWidth = 2;
+                    if (item.type === 'stairs') {
+                        context.beginPath();
+                        for (let step = 0; step < 4; step++) {
+                            const y = item.y - 12 + step * 8;
+                            context.moveTo(item.x - 13, y); context.lineTo(item.x + 2 + step * 3, y);
+                        }
+                        context.stroke();
+                    }
+                    context.fillStyle = '#ffffff'; context.font = 'bold 16px sans-serif'; context.textAlign = 'center'; context.textBaseline = 'middle';
+                    context.fillText(item.type === 'entry' ? 'E' : item.direction === 'up' ? '↑' : '↓', item.x + (item.type === 'entry' ? 0 : 10), item.y);
+                    break;
+                case 'door':
+                    context.save();
+                    context.translate(item.x, item.y);
+                    if (item.horizontal) context.rotate(Math.PI / 2);
+                    context.fillStyle = '#854d0e';
+                    context.fillRect(-8, -(item.size || 40) / 2, 16, item.size || 40);
+                    context.strokeStyle = '#facc15'; context.lineWidth = 2;
+                    context.strokeRect(-8, -(item.size || 40) / 2, 16, item.size || 40);
+                    context.beginPath(); context.arc(4, 0, 2, 0, 2 * Math.PI);
+                    context.fillStyle = '#facc15'; context.fill();
+                    context.restore();
                     break;
                 case 'window':
                     context.strokeStyle = '#3b82f6';
@@ -172,6 +216,13 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                 case 'pillar':
                     context.fillStyle = '#4b5563'; context.beginPath(); context.arc(item.x, item.y, 10, 0, 2 * Math.PI); context.fill(); break;
             }
+        };
+
+        const drawLayer = context => {
+            const drawings = activeLayer?.drawings || [];
+            drawings.filter(d => d.terrain).forEach(d => drawItem(d, context, true));
+            drawings.filter(d => d.terrain).forEach(d => drawItem(d, context));
+            drawings.filter(d => !d.terrain).forEach(d => drawItem(d, context));
         };
 
         const drawToken = (token, context) => {
@@ -202,10 +253,8 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
         if (map.fogOfWar.enabled) {
             // Draw the complete map (background, drawings, all tokens) to the offscreen canvas
             drawBackgroundAndGrid(offscreenCtx);
-            const allTokens = map.layers.flatMap(l => l.tokens);
-            map.layers.forEach(layer => {
-                layer.drawings.forEach(d => drawItem(d, offscreenCtx));
-            });
+            const allTokens = activeLayer?.tokens || [];
+            drawLayer(offscreenCtx);
             allTokens.forEach(t => drawToken(t, offscreenCtx));
     
             // Fill the main, visible canvas with solid black (the "fog")
@@ -236,7 +285,7 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
         } else {
             drawBackgroundAndGrid(ctx);
             if (activeLayer) {
-                activeLayer.drawings.forEach(d => drawItem(d, ctx));
+                drawLayer(ctx);
                 activeLayer.tokens.forEach(t => drawToken(t, ctx));
             }
         }
@@ -273,7 +322,13 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
         setDrawingStartPos(pos);
 
         const toolActions = {
-            'select': () => { setIsDrawing(false); const token = findTokenAt(pos); if (token) setDraggedToken(token); },
+            'select': () => {
+                setIsDrawing(false);
+                const token = findTokenAt(pos);
+                if (token) { setDraggedToken(token); return; }
+                const stairs = activeLayer.drawings.find(d => d.type === 'stairs' && Math.abs(d.x - pos.x) <= 22 && Math.abs(d.y - pos.y) <= 22);
+                if (stairs && map.layers.some(l => l.id === stairs.targetLayerId)) onSave({ ...map, activeLayerId: stairs.targetLayerId });
+            },
             'pencil': () => { setIsDrawing(true); setCurrentDrawing({ type: 'path', id: crypto.randomUUID(), color: '#FFFFFF', strokeWidth: 3, points: [pos] }); },
             'square': () => { setIsDrawing(true); setCurrentDrawing({ type: 'rectangle', id: crypto.randomUUID(), color: '#FFFFFF', strokeWidth: 3, x: pos.x, y: pos.y, width: 0, height: 0 }); },
             'circle': () => { setIsDrawing(true); setCurrentDrawing({ type: 'circle', id: crypto.randomUUID(), color: '#FFFFFF', strokeWidth: 3, cx: pos.x, cy: pos.y, radius: 0 }); },
@@ -337,7 +392,7 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
     const handleUndo = () => {
         if (!activeLayer) return;
         const newLayers = map.layers.map(l => l.id === activeLayer.id ? { ...l, drawings: l.drawings.slice(0, -1) } : l);
-        onSave({ ...map, layers: newLayers });
+        onSave({ ...map, layers: removeBrokenStairs(newLayers) });
     };
 
     const handleClear = () => {
@@ -346,7 +401,7 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
             title: t('clear'), message: t('confirmGenerationMessage'),
             onConfirm: () => {
                 const newLayers = map.layers.map(l => l.id === activeLayer.id ? { ...l, drawings: [], tokens: [] } : l);
-                onSave({ ...map, layers: newLayers });
+                onSave({ ...map, layers: removeBrokenStairs(newLayers) });
             }
         });
     };
@@ -357,119 +412,12 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
             title: t('confirmGeneration'), message: t('confirmGenerationMessage'),
             onConfirm: () => {
                 const { width, height } = canvasRef.current;
-                let newDrawings = [];
-                let newTokens = [];
-                const color = '#888';
-                let monsterCount = 0;
-    
-                if (settings.type === 'caverns') {
-                    const numCaves = { small: 15, medium: 25, large: 40 }[settings.size];
-                    const caves = [];
-                    for(let i=0; i<numCaves; i++){
-                        const radius = 30 + Math.random() * 60;
-                        const x = Math.random() * (width - radius*2) + radius;
-                        const y = Math.random() * (height - radius*2) + radius;
-                        caves.push({x, y, radius});
-                    }
-                    for (let i = 0; i < caves.length - 1; i++) {
-                        const c1 = caves[i]; const c2 = caves[i + Math.floor(Math.random() * (caves.length - 1 - i)) + 1];
-                        if (!c2) continue;
-                        const path = [{x: c1.x, y: c1.y}, {x: c2.x, y: c2.y}];
-                        newDrawings.push({ type: 'path', id: crypto.randomUUID(), color, strokeWidth: 40 + Math.random() * 20, points: path });
-                    }
-                    caves.forEach((c, index) => {
-                        newDrawings.push({ type: 'circle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, cx: c.x, cy: c.y, radius: c.radius });
-                        
-                        // Populate with monsters and props (stalagmites)
-                        if (index > 0 && Math.random() > 0.6) {
-                            monsterCount++;
-                            newTokens.push({
-                                id: crypto.randomUUID(),
-                                x: c.x, y: c.y, radius: 15, color: '#EF4444', label: `M${monsterCount}`
-                            });
-                        } else if (Math.random() > 0.7) {
-                             newDrawings.push({ type: 'pillar', id: crypto.randomUUID(), x: c.x, y: c.y });
-                        }
-                    });
-                } else { // classicDungeon or ruins
-                    const numRooms = { small: 7, medium: 12, large: 20 }[settings.size];
-                    const rooms = [];
-                    let attempts = 0;
-                    while (rooms.length < numRooms && attempts < 2000) {
-                        attempts++;
-                        const w = 40 + Math.random() * 100; const h = 40 + Math.random() * 100;
-                        const x = Math.random() * (width - w - 20) + 10; const y = Math.random() * (height - h - 20) + 10;
-                        const newRoom = { x, y, w, h };
-                        let overlapping = false;
-                        for (const room of rooms) {
-                            if (newRoom.x < room.x + room.w + 20 && newRoom.x + newRoom.w > room.x - 20 &&
-                                newRoom.y < room.y + room.h + 20 && newRoom.y + newRoom.h > room.y - 20) {
-                                overlapping = true; break;
-                            }
-                        }
-                        if (!overlapping) rooms.push(newRoom);
-                    }
-                    rooms.sort((a,b) => (a.x+a.y) - (b.x+b.y));
-                    
-                    for (let i = 0; i < rooms.length - 1; i++) {
-                        const r1 = rooms[i]; const r2 = rooms[i+1];
-                        const c1x = r1.x + r1.w/2; const c1y = r1.y + r1.h/2;
-                        const c2x = r2.x + r2.w/2; const c2y = r2.y + r2.h/2;
-                        const path = [{x: c1x, y: c1y}, {x: c1x, y: c2y}, {x: c2x, y: c2y}];
-                        newDrawings.push({ type: 'path', id: crypto.randomUUID(), color, strokeWidth: 15, points: path });
-                        
-                        // Add doors at connection points (simplified)
-                        if (Math.random() > 0.3) {
-                            newDrawings.push({ type: 'door', id: crypto.randomUUID(), x: c1x, y: r1.y + r1.h });
-                        }
-                    }
-                    
-                    rooms.forEach((room, index) => {
-                        newDrawings.push({ type: 'rectangle', id: crypto.randomUUID(), color, strokeWidth: 0, fill: color, x: room.x, y: room.y, width: room.w, height: room.h });
-                        
-                        // Populate Dungeon
-                        const centerX = room.x + room.w / 2;
-                        const centerY = room.y + room.h / 2;
-
-                        if (index === rooms.length - 1) {
-                            // Boss Room
-                            newTokens.push({
-                                id: crypto.randomUUID(),
-                                x: centerX, y: centerY, radius: 25, color: '#B91C1C', label: 'B'
-                            });
-                            newDrawings.push({ type: 'chest', id: crypto.randomUUID(), x: centerX + 30, y: centerY });
-                        } else if (index > 0) { // Skip first room (start)
-                            if (Math.random() > 0.4) {
-                                // Add random monsters
-                                const count = Math.floor(Math.random() * 2) + 1;
-                                for(let m=0; m<count; m++) {
-                                    monsterCount++;
-                                    newTokens.push({
-                                        id: crypto.randomUUID(),
-                                        x: centerX - 10 + (m*20), y: centerY, radius: 15, color: '#EF4444', label: `M${monsterCount}`
-                                    });
-                                }
-                            }
-                            // Add Props
-                            if (Math.random() > 0.5) {
-                                const propType = Math.random() > 0.6 ? 'table' : (Math.random() > 0.5 ? 'chest' : 'pillar');
-                                newDrawings.push({ type: propType, id: crypto.randomUUID(), x: centerX, y: centerY + 20 });
-                            }
-                        }
-                    });
-                    
-                    if (settings.type === 'ruins') {
-                        const damaged = [];
-                        newDrawings.forEach(d => {
-                            if ((d.type === 'rectangle' && Math.random() < 0.4) || (d.type === 'path' && Math.random() < 0.3)) { // Skip some elements
-                            } else { damaged.push(d); }
-                        });
-                        newDrawings = damaged;
-                    }
-                }
-    
-                const newLayers = map.layers.map(l => l.id === activeLayer.id ? { ...l, drawings: newDrawings, tokens: newTokens } : l);
-                onSave({ ...map, layers: newLayers });
+                const generated = generateDungeonFloors({ ...settings, width, height }, activeLayer,
+                    i => t('defaultLayerName', { number: map.layers.length + i }));
+                const index = map.layers.findIndex(l => l.id === activeLayer.id);
+                const layers = [...map.layers.slice(0, index), ...generated, ...map.layers.slice(index + 1)];
+                onSave({ ...map, layers: removeBrokenStairs(layers) });
+                setActiveTool('select');
             }
         });
     };
@@ -485,7 +433,7 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
             title: t('deleteLayer'), message: t('deleteLayerConfirmation'),
             onConfirm: () => {
                 const newLayers = map.layers.filter(l => l.id !== layerId);
-                onSave({ ...map, layers: newLayers, activeLayerId: (layerId === map.activeLayerId ? newLayers[0]?.id : map.activeLayerId) });
+                onSave({ ...map, layers: removeBrokenStairs(newLayers), activeLayerId: (layerId === map.activeLayerId ? newLayers[0]?.id : map.activeLayerId) });
             }
         });
     };
@@ -519,14 +467,14 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
             React.createElement('div', { className: 'w-32 flex justify-end' }, React.createElement('button', { onClick: onShowTutorial, title: t('showHelp'), className: 'p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]' }, React.createElement(HelpIcon, null))),
             React.createElement(DungeonGeneratorModal, { isOpen: isGeneratorOpen, onClose: () => setIsGeneratorOpen(false), onGenerate: handleGenerateDungeon })
         ),
-        React.createElement('div', { className: 'flex-grow flex' },
+        React.createElement('div', { className: 'flex-grow min-h-0 flex' },
             React.createElement('div', { className: 'flex flex-col gap-2 p-2 bg-[var(--bg-tertiary)]' },
                 tools.map(tool => React.createElement('button', { key: tool.id, onClick: () => tool.action ? tool.action() : setActiveTool(tool.id), title: tool.label, className: `p-3 rounded-lg ${activeTool === tool.id ? 'bg-[var(--accent-primary)] text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:bg-[var(--bg-quaternary)]'}` }, tool.icon))
             ),
-            React.createElement('div', { ref: containerRef, className: 'flex-grow h-full bg-[var(--bg-primary)] cursor-crosshair' },
-                React.createElement('canvas', { ref: canvasRef, onMouseDown: handleMouseDown, onMouseMove: handleMouseMove, onMouseUp: handleMouseUp, onMouseLeave: handleMouseUp, onTouchStart: handleMouseDown, onTouchMove: handleMouseMove, onTouchEnd: handleMouseUp })
+            React.createElement('div', { ref: containerRef, className: 'relative flex-grow min-w-0 h-full bg-[var(--bg-primary)] cursor-crosshair' },
+                React.createElement('canvas', { ref: canvasRef, className: 'absolute inset-0', 'aria-label': t('battleMaps'), onMouseDown: handleMouseDown, onMouseMove: handleMouseMove, onMouseUp: handleMouseUp, onMouseLeave: handleMouseUp, onTouchStart: handleMouseDown, onTouchMove: handleMouseMove, onTouchEnd: handleMouseUp })
             ),
-            React.createElement('div', { className: 'w-64 flex-shrink-0 bg-[var(--bg-tertiary)] p-3 flex flex-col gap-4' },
+            React.createElement('div', { className: 'w-64 flex-shrink-0 overflow-y-auto bg-[var(--bg-tertiary)] p-3 flex flex-col gap-4' },
                 // Theme & Prop Selector
                 React.createElement('div', { className: 'p-2 bg-[var(--bg-secondary)] rounded-lg' },
                     React.createElement('label', { className: 'text-sm font-semibold text-[var(--text-secondary)]' }, activeTool === 'props' ? t('props') : t('mapTheme')),
@@ -560,6 +508,16 @@ const BattleMapCanvas = ({ map, onSave, onBack, onShowTutorial, openConfirmModal
                         React.createElement('label', { className: 'block text-xs text-[var(--text-muted)] mb-1' }, `${t('lightRadius')}: ${map.fogOfWar.radius}px`),
                         React.createElement('input', { type: 'range', min: '30', max: '600', step: '10', value: map.fogOfWar.radius, onChange: e => onSave({ ...map, fogOfWar: { ...map.fogOfWar, radius: parseInt(e.target.value, 10) } }), className: 'w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer' })
                     )
+                ),
+                React.createElement('div', { className: 'p-2 bg-[var(--bg-secondary)] rounded-lg space-y-2 text-sm' },
+                    React.createElement('p', { className: 'text-[var(--text-secondary)]' }, t('dungeonLegend')),
+                    activeLayer.drawings.filter(d => d.type === 'stairs').map(stairs => {
+                        const target = map.layers.find(l => l.id === stairs.targetLayerId);
+                        return target && React.createElement('button', {
+                            key: stairs.id, onClick: () => onSave({ ...map, activeLayerId: target.id }),
+                            className: 'block w-full min-h-11 p-2 rounded bg-[var(--accent-tertiary)] text-white text-left'
+                        }, `${stairs.direction === 'up' ? '↑' : '↓'} ${t('stairsTo', { floor: target.name })}`);
+                    })
                 ),
                 // Layer Manager
                 React.createElement('div', { className: 'flex-grow flex flex-col p-2 bg-[var(--bg-secondary)] rounded-lg' },

@@ -1,6 +1,11 @@
 
 export const translations = {
   en: {
+    dungeonFloors: 'Number of floors',
+    dungeonFloorsHint: 'Extra floors are added and connected by stairs. Other existing floors are kept.',
+    dungeonLegend: 'E: entrance · B: boss · Numbers: rooms. Select stairs or use the buttons to change floor.',
+    stairsTo: 'Stairs to {floor}',
+
     usefulLinks: 'Useful links',
     linkName: 'Link name (optional)',
     linkUrl: 'URL',
@@ -546,6 +551,11 @@ export const translations = {
     changelogTitle: 'Changelog',
   },
   it: {
+    dungeonFloors: 'Numero di piani',
+    dungeonFloorsHint: 'I piani aggiuntivi vengono creati e collegati da scale. Gli altri piani esistenti vengono conservati.',
+    dungeonLegend: 'E: ingresso · B: boss · Numeri: stanze. Seleziona le scale o usa i pulsanti per cambiare piano.',
+    stairsTo: 'Scale verso {floor}',
+
     usefulLinks: 'Link utili',
     linkName: 'Nome del link (facoltativo)',
     linkUrl: 'Indirizzo',
