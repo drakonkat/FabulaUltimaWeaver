@@ -1,6 +1,11 @@
 
 export const translations = {
   en: {
+    usefulLinks: 'Useful links',
+    linkName: 'Link name (optional)',
+    linkUrl: 'URL',
+    addLink: 'Add link',
+    invalidLinkUrl: 'Enter a valid HTTP or HTTPS address.',
     appName: "The GM's Codex",
     // Header & Language
     language: 'Language',
@@ -541,6 +546,11 @@ export const translations = {
     changelogTitle: 'Changelog',
   },
   it: {
+    usefulLinks: 'Link utili',
+    linkName: 'Nome del link (facoltativo)',
+    linkUrl: 'Indirizzo',
+    addLink: 'Aggiungi link',
+    invalidLinkUrl: 'Inserisci un indirizzo HTTP o HTTPS valido.',
     appName: "Il Codice del Master",
     // Header & Language
     language: 'Lingua',

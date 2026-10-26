@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation.js';
 import CampaignNameEditor from './CampaignNameEditor.js';
+import UsefulLinks from './UsefulLinks.js';
 import HeroManager from './HeroManager.js';
 import MonsterManager from './MonsterManager.js';
 import { AdventureAskProvider, AskButton } from './AdventureAsk.js';
@@ -158,7 +159,7 @@ const ModificationModal = ({ isOpen, onClose, onConfirm, isLoading, error, previ
                     value: instruction,
                     onChange: e => setInstruction(e.target.value),
                     placeholder: placeholder || t('modificationPlaceholder'),
-                    className: "w-full p-3 bg-[var(--bg-primary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-32 resize-none mb-4",
+                    className: "w-full p-3 bg-[var(--bg-primary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] h-32 min-h-[6rem] resize-y mb-4",
                     disabled: isLoading,
                     autoFocus: true
                 }),
@@ -203,7 +204,7 @@ const RegenerableInput = ({ label, value, placeholder, type = 'text', onChange, 
             value: value || '',
             onChange: e => onChange(e.target.value),
             placeholder,
-            className: `${inputClass} ${type === 'textarea' ? 'h-24 resize-none' : ''} pr-10`
+            className: `${inputClass} ${type === 'textarea' ? 'h-24 min-h-[6rem] resize-y' : ''} pr-10`
         }),
         React.createElement('button', {
             type: "button",
@@ -258,11 +259,11 @@ const StoryArcForm = ({ arc, onUpdate, onRemove, onGenerate, onRewrite, canGener
     };
 
     const fields = [
-        { key: 'title', placeholder: t('title'), type: 'text' },
+        { key: 'title', placeholder: t('title'), type: 'textarea' },
         { key: 'premise', placeholder: t('premisePlaceholder'), type: 'textarea' },
         { key: 'hook', placeholder: t('hookPlaceholder'), type: 'textarea' },
-        { key: 'objective', placeholder: t('objectivePlaceholder'), type: 'text' },
-        { key: 'stakes', placeholder: t('stakesPlaceholder'), type: 'text' },
+        { key: 'objective', placeholder: t('objectivePlaceholder'), type: 'textarea' },
+        { key: 'stakes', placeholder: t('stakesPlaceholder'), type: 'textarea' },
         { key: 'climax', placeholder: t('climaxPlaceholder'), type: 'textarea' },
         { key: 'resolution', placeholder: t('resolutionPlaceholder'), type: 'textarea' },
     ];
@@ -429,7 +430,7 @@ const EditableCard = ({ item, fieldsConfig, onUpdate, onRemove, onRewrite, canGe
                             value: item[field.key] || '',
                             onChange: e => handleFieldChange(field.key, e.target.value),
                             placeholder: field.placeholder ? t(field.placeholder) : '',
-                            className: `w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] ${field.type === 'textarea' ? 'h-24 resize-none' : ''} ${field.regenerable ? 'pr-10' : ''}`
+                            className: `w-full p-2 bg-[var(--bg-secondary)] rounded-md border-2 border-[var(--border-primary)] focus:border-[var(--border-accent-light)] ${field.type === 'textarea' ? 'h-24 min-h-[6rem] resize-y' : ''} ${field.regenerable ? 'pr-10' : ''}`
                         }),
                         field.regenerable && React.createElement('button', {
                             type: "button",
@@ -591,6 +592,7 @@ const OneShotDashboard = ({ oneShot, onUpdate, onAddHero, onUpdateHero, onRemove
             }, t('bulkEditOneShot')),
             React.createElement('p', { className: 'mt-2 text-sm text-[var(--text-muted)]' }, t('bulkEditHelp'))
         ),
+        React.createElement(UsefulLinks, { key: oneShot.id, adventure: oneShot, onUpdate }),
         React.createElement(HeroManager, { heroes: oneShot.heroes || [], onAddHero, onUpdateHero, onRemoveHero }),
         React.createElement(MonsterManager, { monsters: oneShot.monsters || [], onAddMonster, onUpdateMonster, onRemoveMonster }),
         React.createElement(MainStoryArcManager, {

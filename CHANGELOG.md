@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.6.0 (2026-10-26)
+- Resize one-shot text boxes vertically to read and edit longer content.
+- Add named, clickable useful links at the top of campaigns and one-shots; links are saved with the adventure and included in backups.
+- Ridimensiona verticalmente i box di testo delle one-shot per leggere e modificare i contenuti più lunghi.
+- Aggiungi link utili con nome e indirizzo in cima a campagne e one-shot: i link sono salvati con l’avventura e inclusi nei backup.
+
 ## v1.5.0 (2026-10-26)
 - Continue any one-shot as a sequel: heroes, monsters, locations, events, NPCs and items are cloned into a new adventure.
 - The footer version button opens What is new with the changelog for each version.

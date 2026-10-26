@@ -23,6 +23,7 @@ import { exampleCampaignData } from './data/exampleCampaign.js';
 import BottomNavBar from './components/BottomNavBar.js';
 import MainViewSwitcher from './components/MainViewSwitcher.js';
 import CampaignNameEditor from './components/CampaignNameEditor.js';
+import UsefulLinks from './components/UsefulLinks.js';
 import BattleMapManager from './components/BattleMapManager.js';
 
 
@@ -1284,6 +1285,7 @@ const AppContent = () => {
               React.createElement('div', { className: "w-full max-w-4xl mx-auto text-center mt-8" },
                   React.createElement(CampaignNameEditor, { campaign: activeCampaign, onUpdate: handleUpdateCampaign })
               ),
+              React.createElement(UsefulLinks, { key: activeCampaign.id, adventure: activeCampaign, onUpdate: handleUpdateCampaign }),
               React.createElement(HeroManager, { heroes: activeCampaign.heroes, onAddHero: handleAddHero, onUpdateHero: handleUpdateHero, onRemoveHero: handleRemoveHero, gameSystem: activeCampaign.gameSettings.system }),
               React.createElement(MonsterManager, { monsters: activeCampaign.monsters || [], onAddMonster: handleAddMonster, onUpdateMonster: handleUpdateMonster, onRemoveMonster: handleRemoveMonster }),
               !activeCampaign.storyData && !isLoading && React.createElement(PromptInput, { onGenerate: handleGenerate, isLoading, canGenerate }),
